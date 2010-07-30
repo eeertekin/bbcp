@@ -1,0 +1,92 @@
+#!/bin/sh
+
+# (C) 2010 by the Board of Trustees of the Leland Stanford, Jr., University
+#                          All Rights Reserved
+# Produced by Andrew Hanushevsky for Stanford University under contract
+#            DE-AC03-76-SFO0515 with the Deprtment of Energy
+
+# Establish things we will look for
+#
+AFSFS=/usr/afsws/bin/fs
+UNAME=/bin/uname
+UNAMF=/usr/bin/uname
+VERBOSE=0
+
+##############################################################################
+#                           s u b r o u t i n e s                            #
+##############################################################################
+
+Debug () {
+    if test $VERBOSE -eq 1; then
+       /bin/echo $1
+    fi
+    }
+  
+FileThere () {
+    Debug "Checking file $2 ..."
+    if test -${1} $2; then
+       return 0
+    fi
+    return 1
+    }
+
+##############################################################################
+#                          m a i n   p r o g r a m                           #
+##############################################################################
+
+# Get the uname characteristics
+#
+  if FileThere x $UNAME; then
+     OSNAME=`$UNAME`
+     RLNAME=`$UNAME -r`
+     MTNAME=`$UNAME -m`
+elif FileThere x $UNAMF; then
+     OSNAME=`$UNAMF`
+     RLNAME=`$UNAMF -r`
+     MTNAME=`$UNAMF -m`
+  fi
+
+# If the AFS fs command exists, then this becomes the system name
+#
+    if FileThere x $AFSFS; then
+       SYSNAME=`$AFSFS sysname | /usr/bin/awk -F\' '{print $2}'`
+       if [ $SYSNAME = i386_rhel40 -a "x$MTNAME" = "xx86_64" ]; then
+          SYSNAME=amd64_linux26
+       fi
+  elif [ $OSNAME = SunOS ]; then
+       if [ $MTNAME = i86pc ]; then
+          SYSNAME=sunx86
+       else
+          case $RLNAME in 5.6) RFX=56 ;; 5.7) RFX=57 ;; 5.8) RFX=58 ;; 5.9) RFX=59 ;; esac
+          SYSNAME=sun4x_$RFX
+       fi
+  elif [ $OSNAME = Linux ]; then
+       case $RLNAME in 2.4*) RFX=24 ;; 2.6*) RFX=26 ;; esac
+       PFX=i386
+       case $MTNAME in i*) PFX=i386 ;; x86_64) PFX=amd64 ;; esac
+       SYSNAME=${PFX}_linux$RFX
+  elif [ $OSNAME = FreeBSD ]; then
+       case $RLNAME in 4.2*) RFX=42 ;; 4.3*) RFX=43 ;; 4.4*) RFX=44 ;; esac
+       SYSNAME=FreeBSD$RFX
+  elif [ $OSNAME = Darwin ]; then
+       case $RLNAME in 8*) RFX=80 ;; 9*) RFX=90 ;; 10*) RFX=100 ;; esac
+       case $MTNAME in ppc*) PFX=ppc ;; i386*) PFX=X86 ;; esac
+       SYSNAME=${PFX}_darwin_$RFX
+  elif [ $OSNAME = AIX ]; then
+       case $RLNAME in 2) RFX=42 ;; 3) RFX=43 ;; 4) RFX=44 ;; esac
+       SYSNAME=rs_aix$RFX
+  else
+       SYSNAME=misc
+    fi
+
+  if FileThere d ../obj/$SYSNAME; then :
+  else
+      /bin/mkdir -p ../obj/$SYSNAME
+  fi
+
+  if FileThere d ../bin/$SYSNAME; then :
+  else
+      /bin/mkdir -p ../bin/$SYSNAME
+  fi
+
+  echo $SYSNAME
