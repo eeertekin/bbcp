@@ -1,0 +1,2 @@
+all:
+	@cd src;make makeSunX86 -f ../Makefile OSVER=`../MakeSname`
