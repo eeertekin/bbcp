@@ -103,6 +103,8 @@ bbcp_Config::bbcp_Config()
    bindwait  = 0;
    Options   = 0;
    Mode      = 0644;
+   ModeD     = 0;
+   ModeDC    = 0755;
    BAdd      = 0;
    Bfact     = 0;
    BNum      = 0;
@@ -189,6 +191,7 @@ bbcp_Config::~bbcp_Config()
 #define Add_Nul(x) {cbp[0]=' '; cbp=n2a(x,&cbp[1],"=%d");}
 #define Add_Nup(x) {cbp[0]=' '; cbp=n2a(x,&cbp[1],"+%d");}
 #define Add_Oct(x) {cbp[0]=' '; cbp=n2a(x,&cbp[1],"%o");}
+#define Cat_Oct(x) {            cbp=n2a(x,&cbp[0],"%o");}
 #define Add_Str(x) {cbp[0]=' '; strcpy(&cbp[1], x); cbp+=strlen(x)+1;}
 
 #define bbcp_VALIDOPTS (char *)"-a.B:b:C:c.d:DeE:fFhi:I:kKl:L:m:nopP:q:rs:S:t:T:u:U:vVw:W:x:z"
@@ -203,8 +206,7 @@ void bbcp_Config::Arguments(int argc, char **argv, int cfgfd)
 {
    bbcp_FileSpec *lfsp;
    int n, retc, xTrace = 1, infiles = 0, notctl = 0, rwbsz = 0;
-   const char *exOP;
-   char *inFN=0, c, cbhname[MAXHOSTNAMELEN+1];
+   char *Slash, *inFN=0, c, cbhname[MAXHOSTNAMELEN+1];
    bbcp_Args arglist((char *)"bbcp: ");
 
 // Make sure we have at least one argument
@@ -288,8 +290,14 @@ void bbcp_Config::Arguments(int argc, char **argv, int cfgfd)
                  break;
        case 'L': if (LogOpts(arglist.argval)) Cleanup(1, argv[0], cfgfd);
                  break;
-       case 'm': if (a2o("mode", arglist.argval, Mode, 1, 07777))
-                    Cleanup(1, argv[0], cfgfd);
+       case 'm': if ((Slash = index(arglist.argval, '/')))
+                    {*Slash = '\0';
+                     if (a2o("dirmode", arglist.argval, ModeD, 1, 07777))
+                        Cleanup(1, argv[0], cfgfd);
+                     if (*(Slash+1) && a2o("mode", Slash+1, Mode, 1, 07777))
+                        Cleanup(1, argv[0], cfgfd);
+                    } else if (a2o("mode", arglist.argval, Mode, 1, 07777))
+                              Cleanup(1, argv[0], cfgfd);
                  break;
        case 'M': Options |= bbcp_OUTDIR;
                  break;
@@ -368,16 +376,9 @@ void bbcp_Config::Arguments(int argc, char **argv, int cfgfd)
 
 // Check for options mutually exclsuive with '-a'
 //
-   if ((Options & bbcp_APPEND))
-      {     if (Options & bbcp_FORCE)    exOP = "-f";
-       else if (Options & bbcp_NOUNLINK) exOP = "-K";
-       else if (*csString)               exOP = "-E =";
-       else if (csOpts & bbcp_csPrint)   exOP = "-E =";
-       else                              exOP = 0;
-       if (exOP);
-          {bbcp_Fmsg("Config", "-a and", exOP, "are mutually exclusive.");
-           Cleanup(1, argv[0], cfgfd);
-          }
+   if ((Options & bbcp_APPEND) && (*csString || (csOpts & bbcp_csPrint)))
+      {bbcp_Fmsg("Config", "-a and -E ...= are mutually exclusive.");
+       Cleanup(1, argv[0], cfgfd);
       }
 
 // Check for options mutually exclusice with '-r'
@@ -464,6 +465,11 @@ void bbcp_Config::Arguments(int argc, char **argv, int cfgfd)
    if (notctl) Config_Xeq(rwbsz);
       else     Config_Ctl(rwbsz);
 
+// Get the correct directory creation mode setting
+//
+   if (!ModeD) ModeD = ModeDC;
+      else if ((ModeD & S_IRWXU) == S_IRWXU) ModeDC = ModeD;
+
 // Set checkpoint directory if we do not have one here and must have one
 //
    if (!CKPdir && Options & bbcp_APPEND && Options & bbcp_SNK)
@@ -530,7 +536,8 @@ H("-k      keep the destination file even when the copy fails.")
 H("-K      do not rm the file when -f specified, only truncate it.")
 H("-l logf logs standard error to the specified file.")
 H("-L args sets the logginng level and log message destination.")
-H("-m mode target file mode (default is 0644 or comes via -p option).")
+H("-m mode target file mode as [dmode/][fmode] but one mode must be present.")
+H("        Default dmode is 0755 and fmode is 0644 or it comes via -p option.")
 H("-s snum number of network streams to use (default is 4).")
 H("-p      preserve source mode, ownership, and dates.")
 H("-P sec  produce a progress message every sec seconds (15 sec minimum).")
@@ -605,7 +612,7 @@ int bbcp_Config::ConfigInit(int argc, char **argv)
    {struct rlimit rlim;
     if (getrlimit(RLIMIT_NOFILE, &rlim) < 0)
        bbcp_Emsg("Config",-errno,"getting FD limit");
-       else {rlim.rlim_cur = rlim.rlim_max;
+       else {rlim.rlim_cur=(rlim.rlim_max == RLIM_INFINITY ? 255:rlim.rlim_max);
              if (setrlimit(RLIMIT_NOFILE, &rlim) < 0)
                  bbcp_Emsg("config", errno, "setting FD limit");
             }
@@ -755,7 +762,11 @@ void bbcp_Config::Config_Ctl(int rwbsz)
    if (Options & bbcp_NOSPCHK)   Add_Opt('F');
    if (Options & bbcp_KEEP)      Add_Opt('k');
    if (LogSpec)                 {Add_Opt('L'); Add_Str(LogSpec);}
-                                 Add_Opt('m'); Add_Oct(Mode);
+                                 Add_Opt('m');
+   if (ModeD)                   {              Add_Oct(ModeD); *cbp++ ='/';
+                                               Cat_Oct(Mode);
+                                }
+      else                                     Add_Oct(Mode);
    if (Options & bbcp_OUTDIR || (Options & bbcp_RELATIVE && SrcBase))
                                  Add_Opt('M');
 // if (Options & bbcp_NODNS)     Add_Opt('n');

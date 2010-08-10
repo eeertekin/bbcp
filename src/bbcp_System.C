@@ -53,10 +53,10 @@ extern bbcp_Config bbcp_Config;
 bbcp_System::bbcp_System()
 {
      EnvP     = 0;
+     PageSize = sysconf(_SC_PAGESIZE);
 #if !defined(FREEBSD) && !defined(MACOS) && !defined(CRAY_X1E) && !defined(AIX)
      FreePag  = sysconf(_SC_AVPHYS_PAGES);
      TotPag   = sysconf(_SC_PHYS_PAGES);
-     PageSize = sysconf(_SC_PAGESIZE);
 
      FreeRAM  = (long long)FreePag * (long long)PageSize;
 #else

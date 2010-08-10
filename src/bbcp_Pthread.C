@@ -203,6 +203,7 @@ void *bbcp_Thread_Wait(pthread_t tid)
 void bbcp_Thread_MT(int mtval)
    {
 #ifdef SUN
+#ifndef SUN6 // Ranch version added this #ifndef SUN6
     int rc, oldmt = pthread_getconcurrency(), newmt = mtval;
 
     while(mtval)
@@ -210,6 +211,7 @@ void bbcp_Thread_MT(int mtval)
             else break;
 
     DEBUG("MT set rc=" <<rc <<" omt=" <<oldmt <<" rmt=" <<newmt <<" nmt=" <<mtval);
+#endif
 #endif
    }
 }

@@ -23,6 +23,8 @@ int           Options;
 int           bindtries;
 int           bindwait;
 int           Mode;
+int           ModeD;
+int           ModeDC;
 int           Streams;
 int           BAdd;
 int           Bfact;

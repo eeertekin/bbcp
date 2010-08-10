@@ -38,7 +38,7 @@ int              Compose(long long did, char *dpath, int dplen, char *fname);
 
 int              Create_Path();
 
-int              Decode(char *buff);
+int              Decode(char *buff, char *xName=0);
 
 int              Encode(char *buff, size_t blen);
 
@@ -46,9 +46,11 @@ void             ExtendFileSpec(bbcp_FileSpec* headp);
 
 int              Finalize(int retc=0);
 
-bbcp_FileSystem *FS() {return FSp;}
+bbcp_FileSystem *FSys() {return FSp;}
 
 void             Parse(char *spec);
+
+int              setMode(mode_t Mode);
 
 int              setStat();
 

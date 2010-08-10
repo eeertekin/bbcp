@@ -85,11 +85,11 @@ int bbcp_ZCX::Process()
 
 // Get the initial inbuff and outbuff
 //
-   if (!(obp = Obuff->getEmptyBuff())) return 132;
+   if (!(obp = Obuff->getEmptyBuff())) return ENOBUFS;
    ZStream.next_out  = (Bytef *)obp->data;
    ZStream.avail_out = outsz;
 
-   if (!(ibp = Ibuff->getFullBuff())) return 132;
+   if (!(ibp = Ibuff->getFullBuff())) return ENOBUFS;
    ZStream.next_in  = (Bytef *)ibp->data;
    if (!(ZStream.avail_in = (uInt)ibp->blen)) rc = Z_STREAM_END;
    inbytes = ibp->blen;
@@ -106,7 +106,7 @@ int bbcp_ZCX::Process()
 
          if (!ZStream.avail_in && !ZFlag)
             {Rbuff->putEmptyBuff(ibp);
-             if (!(ibp = Ibuff->getFullBuff())) return 132;
+             if (!(ibp = Ibuff->getFullBuff())) return ENOBUFS;
              ZStream.next_in  = (Bytef *)ibp->data;
              if (!(ZStream.avail_in = (uInt)ibp->blen)) ZFlag = Z_FINISH;
                 else inbytes += ibp->blen;
@@ -116,7 +116,7 @@ int bbcp_ZCX::Process()
             {obp->blen = outsz;
              obp->boff = outbytes; outbytes += outsz;
              Obuff->putFullBuff(obp);
-             if (!(obp = Obuff->getEmptyBuff())) return 132;
+             if (!(obp = Obuff->getEmptyBuff())) return ENOBUFS;
              ZStream.next_out  = (Bytef *)obp->data;
              ZStream.avail_out = outsz;
             }
@@ -128,7 +128,7 @@ int bbcp_ZCX::Process()
    if (obp->blen = outsz - ZStream.avail_out)
       {obp->boff = outbytes; outbytes += obp->blen;
        Obuff->putFullBuff(obp);
-       if (!(obp = Obuff->getEmptyBuff())) return 132;
+       if (!(obp = Obuff->getEmptyBuff())) return ENOBUFS;
       }
 
 // Complete compression/expansion processing

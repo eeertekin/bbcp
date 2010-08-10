@@ -10,7 +10,7 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
   
-#if __GNUC__ >= 4 && __GNUC_MINOR__ >= 3
+#if __GNUC__ >= 3 && __GNUC_MINOR__ >= 4
 #include <iostream>
 #ifdef BBCP_IOMANIP
 #include <iomanip>

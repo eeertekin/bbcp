@@ -1,4 +1,0 @@
-all:
-	@cd src; \
- MACOSX_DEPLOYMENT_TARGET=10.5\
- make make`/usr/bin/uname` OSVER=`../MakeSname`

@@ -21,9 +21,8 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
-#if defined(SUN)
+#if defined(SUN) || defined(LINUX)
 #include <stropts.h>
-#include <sys/stropts.h>
 #endif
 
 #include "bbcp_Debug.h"

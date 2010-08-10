@@ -35,13 +35,20 @@ SUNOPT     = -g  -fsimple $(SUNMT) $(SUN64) $(NLGR) -DSUN
 
 SUNCC      = CC
 SUNcc      = cc
-#SUNCC      = /opt/SUNWspro.WS7/bin/CC
 
 S86OPT     = -D_REENTRANT -DOO_STD $(NLGR) -DSUN -DSUNX86 -Wno-deprecated
 S86OPT     = $(SUNOPT) -DSUNX86 
 
 S86CC      = CC
 S86cc      = gcc
+
+SUNGCC64   = -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64
+SUNGCCMT   = -D_REENTRANT -DOO_STD
+SUNGCCOPT  = -L/usr/local/lib -g \
+             $(SUNGCCMT) $(SUNGCC64) $(NLGR) -DSUN
+
+SUNGCC     = g++
+SUNGcc     = gcc
 
 LNXOPT     = $(SUN64) $(NLGR) -D_REENTRANT -DOO_STD -DLINUX -Wno-deprecated \
              -D_GNU_SOURCE -g
@@ -133,26 +140,26 @@ OBJECT =      \
 TARGET  = $(BINDIR)/bbcp
 
 all:
-	@cd src;make make`/bin/uname` OSVER=`../MakeSname`
+	@make `uname` OSVER=`../MakeSname`
 	@echo Make done.
 
 doitall: $(TARGET)
 
 clean:
-	@cd src;make cleanall OSVER=`../MakeSname`
+	@make cleanall OSVER=`../MakeSname`
 
 cleanall:
 	@rm -f $(OBJECT) $(BINDIR)/core $(TARGET) $(OBJDIR)/*
 
 usage:
-	@echo "Usage: make [echo | usage] [OPT=-DSUN6] [{AIX|BSD|LNX|SUN|S86}CC=ccpath]"
+	@echo "Usage: make [echo | usage] [OPT=-DSUN6] [Sungcc]"
 
 echo:		
 	@for f in $(SOURCE); do \
 	echo $$f ;\
 	done
 
-makeAIX:
+AIX:
 	@make $(MKPARMS) \
 	CC=$(AIXCC) \
 	BB=$(AIXcc) \
@@ -161,7 +168,7 @@ makeAIX:
 	INCLUDE="$(ENVINCLUDE)"  \
 	LIBS="$(AIXLIBS)"
 
-makeFreeBSD:
+FreeBSD:
 	@make $(MKPARMS)  \
 	CC=$(BSDCC) \
 	BB=$(BSDcc) \
@@ -169,7 +176,7 @@ makeFreeBSD:
 	INCLUDE="$(ENVINCLUDE)" \
 	LIBS="$(BSDLIBS)"
 
-makeLinux:
+Linux:
 	@make makeLinux`/bin/uname -i`
 
 makeLinuxi386:
@@ -190,15 +197,16 @@ makeLinuxx86_64:
 	INCLUDE="$(ENVINCLUDE)" \
 	LIBS="$(LNXLIBS64)"
 
-makeDarwin:
-	@make $(MKPARMS)  \
+Darwin:
+	@MACOSX_DEPLOYMENT_TARGET=10.5;\
+	make $(MKPARMS)  \
 	CC=$(MACCC) \
 	BB=$(MACcc) \
 	CFLAGS="$(ENVCFLAGS) $(MACOPT) $(OPT)" \
 	INCLUDE="$(ENVINCLUDE)" \
 	LIBS="$(MACLIBS)"
 
-makeUNICOS/mp:
+UNICOS/mp:
 	@make $(MKPARMS)  \
  	CC=$(LNXCC) \
  	BB=$(LNXcc) \
@@ -207,7 +215,7 @@ makeUNICOS/mp:
  	INCLUDE="$(ENVINCLUDE)" \
  	LIBS="$(LNXLIBS)"
 
-makeSunOS:
+SunOS:
 	@make $(MKPARMS)  \
 	CC=$(SUNCC) \
 	BB=$(SUNcc) \
@@ -215,13 +223,22 @@ makeSunOS:
 	INCLUDE="$(ENVINCLUDE)" \
 	LIBS="$(SUNLIBS)"
 
-makeSunX86:
+SunX86:
 	@make $(MKPARMS)  \
 	CC=$(S86CC) \
 	BB=$(S86cc) \
 	CFLAGS="$(ENVCFLAGS) $(S86OPT) $(OPT)" \
 	INCLUDE="$(ENVINCLUDE)" \
 	LIBS="$(SUNLIBSO)"
+
+Sungcc:
+	@make $(MKPARMS)  \
+	CC=$(SUNGCC) \
+	BB=$(SUNGcc) \
+	CFLAGS="$(ENVCFLAGS) $(SUNGCCOPT) $(OPT)" \
+	INCLUDE="$(ENVINCLUDE)" \
+	LIBS="$(SUNLIBSO)" \
+	OSVER=`../MakeSname`
 
 $(TARGET): $(OBJECT)
 	@echo Creating executable $(TARGET) ...
@@ -319,7 +336,7 @@ $(OBJDIR)/bbcp_MD5.o: bbcp_MD5.C bbcp_MD5.h bbcp_ChkSum.h bbcp_Endian.h
 	@$(CC) -c $(CFLAGS) $(INCLUDE) $(*F).C -o $(OBJDIR)/$(*F).o
 
 $(OBJDIR)/bbcp_NetLogger.o:  bbcp_NetLogger.C bbcp_NetLogger.h NetLogger.h
-	@echo Compiling bbcp_Netlogger.C
+	@echo Compiling bbcp_Netlogger.c
 	@$(CC) -c $(CFLAGS) $(INCLUDE) $(*F).C -o $(OBJDIR)/$(*F).o
 
 $(OBJDIR)/bbcp_Network.o:  bbcp_Network.C bbcp_Network.h bbcp_Debug.h \

@@ -73,7 +73,7 @@ int bbcp_Link::Buff2Net()
       // Obtain a buffer
       //
          if (!(outbuff = bbcp_BPool.getFullBuff()))
-            {NotDone = -1; retc = 132; break;}
+            {NotDone = -1; retc = ENOBUFS; break;}
 
       // Compose the header and see if control operation required
       //
@@ -157,7 +157,7 @@ int bbcp_Link::Net2Buff()
       // Obtain a buffer
       //
          if (!(inbuff = bbcp_BPool.getEmptyBuff()))
-            {rlen = 132; notdone = 0; break;}
+            {rlen = ENOBUFS; notdone = 0; break;}
 
       // Read the header information into the header buffer
       //
