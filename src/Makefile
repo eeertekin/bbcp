@@ -98,6 +98,7 @@ SOURCE =      \
      bbcp_ProgMon.C \
      bbcp_Protocol.C \
      bbcp_Pthread.C \
+     bbcp_RTCopy.C \
      bbcp_Stream.C \
      bbcp_System.C \
      bbcp_Timer.C \
@@ -130,6 +131,7 @@ OBJECT =      \
      $(OBJDIR)/bbcp_ProgMon.o \
      $(OBJDIR)/bbcp_Protocol.o \
      $(OBJDIR)/bbcp_Pthread.o \
+     $(OBJDIR)/bbcp_RTCopy.o \
      $(OBJDIR)/bbcp_Stream.o \
      $(OBJDIR)/bbcp_System.o \
      $(OBJDIR)/bbcp_Timer.o \
@@ -283,7 +285,8 @@ $(OBJDIR)/bbcp_Emsg.o: bbcp_Emsg.C bbcp_Emsg.h bbcp_Debug.h bbcp_Platform.h \
 
 $(OBJDIR)/bbcp_File.o: bbcp_File.C bbcp_File.h bbcp_IO.h bbcp_BuffPool.h \
                        bbcp_Config.h bbcp_Debug.h bbcp_Emsg.h bbcp_Pthread.h \
-                       bbcp_Platform.h bbcp_Headers.h bbcp_ChkSum.h
+                       bbcp_Platform.h bbcp_Headers.h bbcp_ChkSum.h \
+                       bbcp_RTCopy.h
 	@echo Compiling bbcp_File.C
 	@$(CC) -c $(CFLAGS) $(INCLUDE) $(*F).C -o $(OBJDIR)/$(*F).o
 
@@ -305,6 +308,7 @@ $(OBJDIR)/bbcp_FS_Null.o: bbcp_FS_Null.C bbcp_FS_Null.h \
 	@$(CC) -c $(CFLAGS) $(INCLUDE) $(*F).C -o $(OBJDIR)/$(*F).o
 
 $(OBJDIR)/bbcp_FS_Unix.o: bbcp_FS_Unix.C bbcp_FS_Unix.h bbcp_FileSystem.h \
+                          bbcp_Config.h  bbcp_IO.h \
                           bbcp_Platform.h bbcp_System.h bbcp_Pthread.h
 	@echo Compiling bbcp_FS_Unix.C
 	@$(CC) -c $(CFLAGS) $(INCLUDE) $(*F).C -o $(OBJDIR)/$(*F).o
@@ -373,6 +377,11 @@ $(OBJDIR)/bbcp_Protocol.o: bbcp_Protocol.C bbcp_Protocol.h bbcp_Config.h  \
 
 $(OBJDIR)/bbcp_Pthread.o: bbcp_Pthread.C bbcp_Pthread.h
 	@echo Compiling bbcp_Pthread.C
+	@$(CC) -c $(CFLAGS) $(INCLUDE) $(*F).C -o $(OBJDIR)/$(*F).o
+
+$(OBJDIR)/bbcp_RTCopy.o: bbcp_RTCopy.C bbcp_RTCopy.h bbcp_Config.h \
+                         bbcp_Emsg.h bbcp_FileSystem.h bbcp_Pthread.h
+	@echo Compiling bbcp_RTCopy.C
 	@$(CC) -c $(CFLAGS) $(INCLUDE) $(*F).C -o $(OBJDIR)/$(*F).o
 
 $(OBJDIR)/bbcp_Stream.o: bbcp_Stream.C bbcp_Stream.h bbcp_Config.h bbcp_Debug.h \

@@ -95,6 +95,7 @@ long long        nextoffset;
 long long        lastoff;
 long long        bytesLeft;
 long long        blockSize;
+int              rtCopy;
 int              curq;
 bbcp_IO         *IOB;
 bbcp_FileSystem *FSp;

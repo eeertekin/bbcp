@@ -25,7 +25,6 @@ bbcp_FileSpec        *next;
 char                 *username;
 char                 *hostname;
 char                 *pathname;
-char                 *pathrltv;
 char                 *filename;
 char                 *targpath;
 char                 *targetfn;
@@ -62,7 +61,7 @@ int              Xfr_Done();
 
      bbcp_FileSpec(bbcp_FileSystem *fsp=0, char *hname = 0, char *uname=0)
                   : next(0), username(uname), hostname(hname), pathname(0),
-                    pathrltv(0), filename(0), targpath(0), targetfn(0),
+                    filename(0), targpath(0), targetfn(0),
                     targetsz(0), targsigf(0), fspec(0), fspec2(0), FSp(fsp) {}
     ~bbcp_FileSpec() {if (fspec)    free(fspec);
                       if (fspec2)   free(fspec2);
@@ -77,7 +76,6 @@ char            *fspec2;
 bbcp_FileSystem *FSp;
 int              Xfr_Fixup();
 void             BuildPaths();
-void             CompleteSpec();
 
 };
 #endif

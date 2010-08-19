@@ -274,8 +274,10 @@ int bbcp_Node::Wait(bbcp_Node *other)
 
 int bbcp_Node::RecvFile(bbcp_FileSpec *fp)
 {
+   static const int wOnly = S_IWUSR;
+
    long tretc = 0;
-   int i, oflag, retc, progtid = 0;
+   int i, oflag, retc, Mode = wOnly, progtid = 0;
    long long startoff = 0;
    pid_t Child[2] = {0,0};
    bbcp_File *outFile, *seqFile = 0;
@@ -298,6 +300,12 @@ int bbcp_Node::RecvFile(bbcp_FileSpec *fp)
                else oflag = O_CREAT | O_WRONLY;
            }
    else    oflag = O_WRONLY | O_CREAT | O_EXCL;
+
+// Establish mode, we normally make the file write-only
+//
+   if ( bbcp_Config.Options & bbcp_RTCSNK
+   && !(bbcp_Config.Options & bbcp_RTCHIDE))
+      Mode = bbcp_Config.Mode|S_IWUSR|S_ISUID;
 
 // Tell the user what we are bout to do
 //
@@ -341,7 +349,7 @@ int bbcp_Node::RecvFile(bbcp_FileSpec *fp)
 // Open the file and set the starting offset
 //
    Elapsed_Timer.Start();
-   if (!(outFile = fp->FSys()->Open(fp->targpath, oflag, 0200)))
+   if (!(outFile = fp->FSys()->Open(fp->targpath, oflag, Mode)))
       return bbcp_Emsg("RecvFile", errno, "opening", fp->targpath);
    if (startoff && ((retc = outFile->Seek(startoff)) < 0))
       return bbcp_Emsg("RecvFile",retc,"setting write offset for",fp->targpath);
@@ -424,9 +432,12 @@ int bbcp_Node::RecvFile(bbcp_FileSpec *fp)
           {retc = -retc;
            bbcp_Emsg("RecvFile", retc, "finding", fp->targpath);
           }
-          else if (Info.size != fp->Info.size && Info.mode)
-                  {retc = 29;
-                   bbcp_Fmsg("RecvFile", "Not all data was transfered for",
+          else if (Info.size != fp->Info.size && Info.mode
+               &&  !(bbcp_Config.Options & bbcp_RTCSNK))
+                  {const char *What = (Info.size < fp->Info.size
+                                    ?  "Not all" : "Too much");
+                   retc = 29;
+                   bbcp_Fmsg("RecvFile", What, "data was transfered for",
                              fp->targpath);
                    DEBUG("src size=" <<fp->Info.size <<" snk size=" <<Info.size);
                   }

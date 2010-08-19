@@ -277,7 +277,7 @@ int bbcp_FileSpec::Finalize(int retc)
 void bbcp_FileSpec::Parse(char *spec)
 {
    char *sp, *cp;
-   int i, isrel;
+   int i;
 
 // Create a copy of the spec
 //
@@ -299,29 +299,24 @@ void bbcp_FileSpec::Parse(char *spec)
       }
    pathname = sp;
 
-// Point to the filename component
+// If this is an absolute path then we need to split it into a path component
+// and a filename component. Otherwise, this path will may need to be qualified
+// by the source base path.
 //
-   i = strlen(pathname)-1;
-   while(i >= 0 && pathname[i] != '/') i--;
-   if (i >= 0) filename = &pathname[i+1];
-      else if (bbcp_Config.SrcBase) filename = pathname;
-      else {fspec2 = (char *)malloc(strlen(pathname)+3);
-            fspec2[0] = '.'; fspec2[1] = '/';
-            strcpy(&fspec2[2], pathname);
-            filename = &fspec2[2];
-            pathname = fspec2;
-           }
-
-// Check if we have a relative pathname here
-//
-   if (pathname[0] != '/')
-      {bbcp_Config.Options |= bbcp_RELATIVE;
+   if (*pathname == '/')
+      {if ((filename = rindex(pathname+1, '/'))) filename++;
+          else filename = pathname+1;
+      } else {
+       filename = pathname;
+       bbcp_Config.Options |= bbcp_RELATIVE;
        if (!username) username = bbcp_Config.SrcUser;
        if (!hostname) hostname = bbcp_Config.SrcHost;
        if (bbcp_Config.Options & bbcp_SRC && bbcp_Config.SrcBase)
-          {CompleteSpec();
+          { fspec2 = (char *)malloc(strlen(pathname)+bbcp_Config.SrcBlen+1);
+           strcpy(fspec2,   bbcp_Config.SrcBase);
+           strcpy(fspec2+bbcp_Config.SrcBlen, pathname);
+           pathname = fspec2; filename = fspec2+bbcp_Config.SrcBlen;
            BuildPaths(); 
-           filename = pathrltv;
           }
       }
 }
@@ -484,8 +479,8 @@ int bbcp_FileSpec::Xfr_Done()
   
 void bbcp_FileSpec::BuildPaths()
 {
-   char delim, *cp = pathrltv, *Slush;
-   int plen, same = 0;
+   char delim, *cp = filename, *Slush;
+   int plen, same = 0, pfxlen = filename - pathname;
    bbcp_FileSpec *PS_New, *PS_Prv = 0, *PS_Cur = bbcp_Config.srcPath;
 
 // Make sure we have at least one slash here
@@ -497,17 +492,17 @@ void bbcp_FileSpec::BuildPaths()
    while(*cp && cp < Slush)
         {while(*cp && *cp != '/') cp++;
          delim = *cp; *cp = '\0';
-         plen = cp - pathrltv;
+         plen = cp - filename;
          while(PS_Cur && plen >= PS_Cur->seqno)
               {if (plen == PS_Cur->seqno
-               && (same =! strcmp(pathrltv, PS_Cur->pathrltv))) break;
+               && (same =! strcmp(filename, PS_Cur->filename))) break;
                PS_Prv = PS_Cur;
                PS_Cur = PS_Cur->next;
               }
          if (!same)
             {PS_New = new bbcp_FileSpec();
              PS_New->fspec = PS_New->pathname = strdup(pathname);
-             PS_New->filename = PS_New->fspec+(cp-pathrltv-1);
+             PS_New->filename = PS_New->fspec+pfxlen;
              PS_New->seqno = plen;
              if (PS_New->Stat(0))
                 {DEBUG("Path " <<pathname <<" not found.");
@@ -520,62 +515,6 @@ void bbcp_FileSpec::BuildPaths()
             }
          if (*cp = delim) cp++;
         }
-}
-
-/******************************************************************************/
-/*                          C o m p l e t e S p e c                           */
-/******************************************************************************/
-  
-void bbcp_FileSpec::CompleteSpec()
-{
-   char *newspec, *newpath, *np;
-   int len;
-
-// Extend the path with the base path
-//
-   len = bbcp_Config.SrcBlen + strlen(pathname) + 2;
-   if (username) len += strlen(username) + 1;
-   if (hostname) len += strlen(hostname) + 1;
-   np = newspec = (char *)malloc(len);
-
-// Relocate the username
-//
-   if (username)
-      {strcpy(np, username); username = np;
-       np += strlen(username); *np = '\0'; np++;
-      }
-
-// Relocate the hostname
-//
-   if (hostname)
-      {strcpy(np, hostname); hostname = np;
-       np += strlen(hostname); *np = '\0'; np++;
-      }
-
-// Construct full path
-//
-   strcpy(np, bbcp_Config.SrcBase);
-   newpath = np;
-   np += bbcp_Config.SrcBlen-1;
-   if (*np != '/') {np++; *np = '/';}
-   np++;
-   pathrltv = np;
-
-// Copy the full path but remove duplicate slashes
-//
-   while(*pathname)
-        {if (*pathname == '/' && pathname[1] == '/') filename--;
-            else {*np = *pathname; np++;}
-         pathname++;
-        }
-   *np = '\0';
-
-// Replace the existing spec with the new spec
-//
-   free(fspec);
-   fspec = newspec;
-   filename = newspec + (filename - pathname);
-   pathname = newpath;
 }
 
 /******************************************************************************/

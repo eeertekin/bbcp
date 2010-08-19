@@ -19,7 +19,7 @@ class bbcp_Config
 {
 public:
 
-int           Options;
+long long     Options;
 int           bindtries;
 int           bindwait;
 int           Mode;
@@ -55,16 +55,21 @@ char         *MyUser;
 char         *MyProg;
 char         *CKPdir;
 char         *IDfn;
-int           lastseqno;
 char         *Logfn;
 char         *LogSpec;
 char         *RepSpec;
 bbcp_LogFile *MLog;
 char         *CopyOpts;
 int           CopyOptt;
+int           lastseqno;
 int           TimeLimit;
 int           MTLevel;
-signed int    Jitter;
+
+char         *rtSpec;
+char         *rtLockf;
+int           rtCheck;
+int           rtLimit;
+int           rtLockd;
 
 int           csOpts;
 #define bbcp_csVerIn  0x00000001
@@ -131,7 +136,9 @@ int   EOpts(char *Opts);
 void  help(int rc);
 int   HostAndPort(const char *what, char *path, char *buff, int bsz);
 int   LogOpts(char *opts);
-void  ParseSB();
+void  ParseSB(char *spec);
+int   ROpts(char *Opts);
+int   ROptsErr(char *Opts);
 char *Rtoken(void);
 char *tohex(char *inbuff, int inlen, char *outbuff);
 int   Unbuff(char *Opts);
@@ -141,41 +148,48 @@ int   Unbuff(char *Opts);
 /*                   O p t i o n   D e f i n o i t i o n s                    */
 /******************************************************************************/
   
-#define bbcp_APPEND   0x00000001
-#define bbcp_COMPRESS 0x00000002
-#define bbcp_NOUNLINK 0x00000004
-#define bbcp_FORCE    0x00000008
-#define bbcp_KEEP     0x00000010
-#define bbcp_PCOPY    0x00000020
-#define bbcp_VERBOSE  0x00000040
-#define bbcp_TRACE    0x00000080
-#define bbcp_OUTDIR   0x00000100
-#define bbcp_CON2SRC  0x00000200
-#define bbcp_BLAB     0x00000400
-#define bbcp_ORDER    0x00000800
-#define bbcp_RECURSE  0x00001000
-#define bbcp_IDIO     0x00002000
-#define bbcp_ODIO     0x00004000
-#define bbcp_MANTUNE  0x00008000
+#define bbcp_APPEND   0x0000000000000001LL
+#define bbcp_COMPRESS 0x0000000000000002LL
+#define bbcp_NOUNLINK 0x0000000000000004LL
+#define bbcp_FORCE    0x0000000000000008LL
+#define bbcp_KEEP     0x0000000000000010LL
+#define bbcp_PCOPY    0x0000000000000020LL
+#define bbcp_VERBOSE  0x0000000000000040LL
+#define bbcp_TRACE    0x0000000000000080LL
+#define bbcp_OUTDIR   0x0000000000000100LL
+#define bbcp_CON2SRC  0x0000000000000200LL
+#define bbcp_BLAB     0x0000000000000400LL
+#define bbcp_ORDER    0x0000000000000800LL
+#define bbcp_RECURSE  0x0000000000001000LL
+#define bbcp_IDIO     0x0000000000002000LL
+#define bbcp_ODIO     0x0000000000004000LL
+#define bbcp_MANTUNE  0x0000000000008000LL
 
-#define bbcp_RELATIVE 0x00010000
-#define bbcp_SRC      0x00020000
-#define bbcp_SNK      0x00040000
-#define bbcp_SSDATA   0x00060000
-#define bbcp_DOBIND   0x00080000
+#define bbcp_RELATIVE 0x0000000000010000LL
+#define bbcp_SRC      0x0000000000020000LL
+#define bbcp_SNK      0x0000000000040000LL
+#define bbcp_SSDATA   0x0000000000060000LL
+#define bbcp_DOBIND   0x0000000000080000LL
 
-#define bbcp_REPBUFFS 0x00100000
-#define bbcp_REPUSAGE 0x00200000
-#define bbcp_NOSPCHK  0x00400000
-#define bbcp_NODNS    0x00800000
+#define bbcp_REPBUFFS 0x0000000000100000LL
+#define bbcp_REPUSAGE 0x0000000000200000LL
+#define bbcp_NOSPCHK  0x0000000000400000LL
+#define bbcp_NODNS    0x0000000000800000LL
 
-#define bbcp_LOGIN    0x01000000
-#define bbcp_LOGOUT   0x02000000
-#define bbcp_LOGRD    0x04000000
-#define bbcp_LOGWR    0x08000000
-#define bbcp_LOGCMP   0x10000000
-#define bbcp_LOGEXP   0x20000000
-#define bbcp_LOGGING  0x3f000000
+#define bbcp_LOGIN    0x0000000001000000LL
+#define bbcp_LOGOUT   0x0000000002000000LL
+#define bbcp_LOGRD    0x0000000004000000LL
+#define bbcp_LOGWR    0x0000000008000000LL
+#define bbcp_LOGCMP   0x0000000010000000LL
+#define bbcp_LOGEXP   0x0000000020000000LL
+#define bbcp_LOGGING  0x000000003f000000LL
+
+#define bbcp_RTCOPY   0x0000000300000000LL
+#define bbcp_RTCSRC   0x0000000100000000LL
+#define bbcp_RTCSNK   0x0000000200000000LL
+#define bbcp_RTCBLOK  0x0000000400000000LL
+#define bbcp_RTCHIDE  0x0000000800000000LL
+#define bbcp_RTCVERC  0x0000001000000000LL
 
 #define BBCP_MAXSTREAMS 64
 #define BBCP_MINPMONSEC  1

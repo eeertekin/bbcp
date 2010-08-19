@@ -31,9 +31,9 @@ virtual int          Close();
 
         int          FD() {return iofd;}
 
-        long long    ioStats() {return xfrbytes;}
+virtual long long    ioStats() {return xfrbytes;}
 
-        long long    ioStats(double &iotime)
+virtual long long    ioStats(double &iotime)
                             {xfrtime.Report(iotime); return xfrbytes;}
 
 virtual void         Log(const char *rk, const char *wk);
@@ -50,8 +50,9 @@ virtual ssize_t      Write(char *buff, size_t wrsz, off_t offs);
 
 virtual ssize_t      Write(const struct iovec *iovp, int iovn);
 
-             bbcp_IO(int fd=-1) : RKeyA(0), RKeyZ(0), WKeyA(0), WKeyZ(0),
-                                  xfrbytes(0), xfrseek(0), iofd(fd) {}
+             bbcp_IO(int fd=-1)
+                    : RKeyA(0), RKeyZ(0), WKeyA(0), WKeyZ(0),
+                      xfrbytes(0), xfrseek(0), iofd(fd) {}
 virtual     ~bbcp_IO()          {Close();
                                  if (RKeyA) free(RKeyA);
                                  if (RKeyZ) free(RKeyZ);

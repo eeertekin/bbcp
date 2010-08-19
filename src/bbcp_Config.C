@@ -102,9 +102,9 @@ bbcp_Config::bbcp_Config()
    bindtries = 1;
    bindwait  = 0;
    Options   = 0;
-   Mode      = 0644;
+   Mode      = S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH;
    ModeD     = 0;
-   ModeDC    = 0755;
+   ModeDC    = Mode   |S_IXUSR|S_IXGRP|S_IXOTH;
    BAdd      = 0;
    Bfact     = 0;
    BNum      = 0;
@@ -137,7 +137,6 @@ bbcp_Config::bbcp_Config()
    IDfn      = 0;
    TimeLimit = 0;
    MTLevel   = 0;
-   Jitter    = 0;
    csOpts    = 0;
    csSize    = 16;
    csType    = bbcp_csMD5;
@@ -145,6 +144,10 @@ bbcp_Config::bbcp_Config()
   *csString  = 0;
    csPath    = 0;
    csFD      = -1;
+   rtCheck   = 3;
+   rtLimit   = 0;
+   rtLockd   = -1;
+   rtLockf   = 0;
    ubSpec[0] = ' '; ubSpec[1] = ' '; ubSpec[2] = 0;
 }
 
@@ -181,6 +184,7 @@ bbcp_Config::~bbcp_Config()
    if (MyProg)   free(MyProg);
    if (CKPdir)   free(CKPdir);
    if (csSpec)   free(csSpec);
+   if (rtLockf)  free(rtLockf);
 }
 /******************************************************************************/
 /*                             A r g u m e n t s                              */
@@ -194,7 +198,7 @@ bbcp_Config::~bbcp_Config()
 #define Cat_Oct(x) {            cbp=n2a(x,&cbp[0],"%o");}
 #define Add_Str(x) {cbp[0]=' '; strcpy(&cbp[1], x); cbp+=strlen(x)+1;}
 
-#define bbcp_VALIDOPTS (char *)"-a.B:b:C:c.d:DeE:fFhi:I:kKl:L:m:nopP:q:rs:S:t:T:u:U:vVw:W:x:z"
+#define bbcp_VALIDOPTS (char *)"-a.B:b:C:c.d:DeE:fFhi:I:kKl:L:m:nopP:q:rR.s:S:t:T:u:U:vVw:W:x:z"
 #define bbcp_SSOPTIONS bbcp_VALIDOPTS "MH:Y:"
 
 #define Hmsg1(a)   {bbcp_Fmsg("Config", a);    help(1);}
@@ -226,10 +230,8 @@ void bbcp_Config::Arguments(int argc, char **argv, int cfgfd)
      { switch(c)
        {
        case 'a': Options |= bbcp_APPEND | bbcp_ORDER;
-                 if (arglist.argval)
-                    {if (CKPdir) free(CKPdir);
-                     CKPdir = strdup(arglist.argval);
-                    }
+                 if (CKPdir) {free(CKPdir); CKPdir = 0;}
+                 if (arglist.argval) CKPdir = strdup(arglist.argval);
                  break;
        case 'B': if (a2sz("window size", arglist.argval,
                          rwbsz, 1024, ((int)1)<<30))
@@ -250,12 +252,11 @@ void bbcp_Config::Arguments(int argc, char **argv, int cfgfd)
        case 'C': if (Configure(arglist.argval)) Cleanup(1, argv[0], cfgfd);
                  break;
        case 'd': if (SrcBuff) free(SrcBuff);
-                 SrcBuff = strdup(arglist.argval);
                  if (Options & (bbcp_SRC | bbcp_SNK))
-                    {SrcBase = SrcBuff;
+                    {SrcBase = SrcBuff = strdup(arglist.argval);
                      SrcBlen = strlen(SrcBase);
                      SrcUser = SrcHost = 0;
-                    } else ParseSB();
+                    } else ParseSB(arglist.argval);
                  break;
        case 'D': Options |= bbcp_TRACE;
                  break;
@@ -316,6 +317,10 @@ void bbcp_Config::Arguments(int argc, char **argv, int cfgfd)
                  break;
        case 'r': Options |= bbcp_RECURSE;
                  break;
+       case 'R': Options |= bbcp_RTCOPY;
+                 if (rtSpec) free(rtSpec);
+                 rtSpec = (arglist.argval ? strdup(arglist.argval) : 0);
+                 break;
        case 's': if (a2n("streams", arglist.argval,
                          Streams,1,BBCP_MAXSTREAMS)) Cleanup(1, argv[0], cfgfd);
                  break;
@@ -369,6 +374,10 @@ void bbcp_Config::Arguments(int argc, char **argv, int cfgfd)
 //
    if (csSpec && EOpts(csSpec)) Cleanup(1, argv[0], cfgfd);
 
+// If there is a realtime specification, process it now
+//
+   if (rtSpec && ROpts(rtSpec)) Cleanup(1, argv[0], cfgfd);
+
 // Enforce the order option if we need to compute checksum at the destination
 //
    if ((csOpts & bbcp_csVerOut) || (Options & bbcp_COMPRESS))
@@ -392,6 +401,13 @@ void bbcp_Config::Arguments(int argc, char **argv, int cfgfd)
 //
    if ((Options & bbcp_KEEP) && (Options & bbcp_NOUNLINK))
       {bbcp_Fmsg("Config", "-k and -K are mutually exclusive.");
+       Cleanup(1, argv[0], cfgfd);
+      }
+
+// Check for options mutually exclusive with '-R'
+//
+   if ((Options & bbcp_RTCOPY) && (Options & bbcp_IDIO))
+      {bbcp_Fmsg("Config", "-R and '-u s' are mutually exclusive.");
        Cleanup(1, argv[0], cfgfd);
       }
 
@@ -440,6 +456,7 @@ void bbcp_Config::Arguments(int argc, char **argv, int cfgfd)
         if (Options & bbcp_SRC)
            {if (!srcSpec)
                {bbcp_Fmsg("Config", "Source file not specified."); exit(3);}
+            Options &= ~bbcp_RTCSNK;
            }
    else if (Options & bbcp_SNK)
            {if (infiles > 1)
@@ -447,6 +464,7 @@ void bbcp_Config::Arguments(int argc, char **argv, int cfgfd)
             if (!(snkSpec = srcSpec))
                {bbcp_Fmsg("Config", "Target file not specified."); exit(3);}
             srcSpec = srcLast = 0;
+            Options &= ~bbcp_RTCSRC;
            }
    else    {     if (infiles == 0) Hmsg1("Copy source not specified.")
             else if (infiles == 1) Hmsg1("Copy target not specified.")
@@ -509,9 +527,9 @@ void bbcp_Config::help(int rc)
 H("Usage:   bbcp [Options] [Inspec] Outspec")
 I("Options: [-a [dir]] [-b [+]bf] [-B bsz] [-c [lvl]] [-C cfn] [-D] [-d path]")
 H("         [-e] [-E csa] [-f] [-F] [-h] [-i idfn] [-I slfn] [-k] [-K]")
-H("         [-L opts[@logurl]] [-l logf] [-m mode] [-p] [-P sec] [-r] [-q qos]")
-H("         [-s snum] [-S srcxeq] [-T trgxeq] [-t sec] [-v] [-V] [-u loc]")
-H("         [-U wsz] [-w [=]wsz] [-x rate] [-z] [--]")
+H("         [-L opts[@logurl]] [-l logf] [-m mode] [-p] [-P sec] [-r] [-R [args]]")
+H("         [-q qos] [-s snum] [-S srcxeq] [-T trgxeq] [-t sec] [-v] [-V]")
+H("         [-u loc] [-U wsz] [-w [=]wsz] [-x rate] [-z] [--]")
 I("I/Ospec: [user@][host:]file")
 if (rc) exit(rc);
 I("Function: Secure and fast copy utility.")
@@ -543,6 +561,7 @@ H("-p      preserve source mode, ownership, and dates.")
 H("-P sec  produce a progress message every sec seconds (15 sec minimum).")
 H("-q lvl  specifies the quality of service for routers that support QOS.")
 H("-r      copy subdirectories and their contents (actual files only).")
+H("-R args enables real-time copy where args specific handling options.")
 H("-S cmd  command to start bbcp on the source node.")
 H("-T cmd  command to start bbcp on the target node.")
 H("-t sec  sets the time limit for the copy to complete.")
@@ -713,6 +732,13 @@ const char *bbcp_Config::Scale(double &xVal)
     if (xVal < Kilo) return "G";
     xVal /= Kilo;
     if (xVal < Kilo) return "T";
+    xVal /= Kilo;
+    if (xVal < Kilo) return "E";
+    xVal /= Kilo;
+    if (xVal < Kilo) return "Z";
+    xVal /= Kilo;
+    if (xVal < Kilo) return "Y";
+    return "";
 }
  
 /******************************************************************************/
@@ -775,6 +801,9 @@ void bbcp_Config::Config_Ctl(int rwbsz)
    if (Progint)                 {Add_Opt('P'); Add_Num(Progint);}
    if ((n = bbcp_Net.QoS()))    {Add_Opt('q'); Add_Num(n); }
    if (Options & bbcp_RECURSE)   Add_Opt('r');
+   if (Options & bbcp_RTCOPY)   {Add_Opt('R');
+                                 if (rtSpec) Add_Str(rtSpec);
+                                }
    if (Streams)                 {Add_Opt('s'); Add_Num(Streams);}
    if (TimeLimit)               {Add_Opt('t'); Add_Num(TimeLimit);}
    if (Options & bbcp_VERBOSE)   Add_Opt('v');
@@ -831,9 +860,10 @@ void bbcp_Config::Config_Xeq(int rwbsz)
 //
    setRWB(rwbsz);
 
-// Set the blocking factor to one (direct forced) if it has not been specified
+// Set the blocking factor to one if it has not been specified or if direct
+// or real-time input is in effect.
 //
-   if (!Bfact || (Options & bbcp_IDIO)) Bfact = 1;
+   if (!Bfact || (Options & (bbcp_IDIO | bbcp_RTCOPY))) Bfact = 1;
 
 // Compute the number of buffers we will obtain
 //
@@ -972,14 +1002,22 @@ char *bbcp_Config::n2a(int  val, char *buff, const char *fmt)
 
 char *bbcp_Config::n2a(long long  val, char *buff, const char *fmt)
       {return buff + sprintf(buff, fmt, val);}
+
 /******************************************************************************/
 /*                               P a r s e S B                                */
 /******************************************************************************/
   
-void bbcp_Config::ParseSB()
+void bbcp_Config::ParseSB(char *spec)
 {
    char *up = 0, *hp = 0, *cp, *sp;
-   int i;
+   int i = strlen(spec);
+
+// Make sure spec ends with a slash
+//
+   if (spec[i-1] == '/') SrcBuff = strdup(spec);
+      else {SrcBuff = (char *)malloc(i+2);
+            strcpy(SrcBuff, spec); strcpy(SrcBuff+i, "/");
+           }
 
 // Prepare to parse the spec
 //
@@ -989,6 +1027,7 @@ void bbcp_Config::ParseSB()
                {SrcUser = sp; *cp = '\0'; sp = cp+1;}
        else if (*cp == ':' && !SrcHost)
                {SrcHost = sp; *cp = '\0'; sp = cp+1;}
+       else if (*cp == '/') break;
        cp++;
       }
    SrcBase = sp;
@@ -1146,6 +1185,66 @@ int bbcp_Config::HostAndPort(const char *what, char *path, char *buff, int bsz)
 //
     buff[hlen] = '\0';
     return pnum;
+}
+  
+/******************************************************************************/
+/*                                 R O p t s                                  */
+/******************************************************************************/
+  
+int bbcp_Config::ROpts(char *opts)
+{
+   struct auto_RO {char *S; auto_RO(char *x) : S(strdup(x)) {}
+                           ~auto_RO() {free(S);}
+                  } Arg(opts);
+   char *rNext, *rOpts = Arg.S;
+
+// Set values to defaults
+//
+   rtCheck   = 3;
+   rtLimit   =-1;
+   if (rtLockf) {free(rtLockf); rtLockf = 0;}
+   Options &= ~(bbcp_RTCBLOK | bbcp_RTCHIDE);
+
+// Grab all items in opts (these may be separated by a comma)
+//
+   while(rOpts && *rOpts)
+        {if ((rNext = index(rOpts, ','))) while(*rNext == ',') *rNext++ = '\0';
+         switch(*rOpts)
+               {case 'c': if (*(rOpts+1) != '=' 
+                          ||  (rtCheck = atoi(rOpts+2)) <= 0)
+                             return ROptsErr(rOpts);
+                          break;
+                case 'b': Options |= bbcp_RTCBLOK;
+                          break;
+                case 'h': Options |= bbcp_RTCHIDE;
+                          break;
+                case 'i': if (*(rOpts+1) != '='
+                          ||  (rtLimit = atoi(rOpts+2)) <= 0)
+                             return ROptsErr(rOpts);
+                          break;
+                case 'v': Options |= bbcp_RTCVERC;
+                          break;
+                case '/':
+                case '.': rtLockf = strdup(rOpts);
+                          break;
+                default:  return ROptsErr(rOpts);
+               }
+          rOpts = rNext;
+         }
+
+// All done
+//
+   return 0;
+}
+
+/******************************************************************************/
+/*                              R O p t s E r r                               */
+/******************************************************************************/
+  
+int bbcp_Config::ROptsErr(char *eTxt)
+{
+    bbcp_Fmsg("Config", "Invalid -R argument -", eTxt);
+    return -1;
 }
  
 /******************************************************************************/

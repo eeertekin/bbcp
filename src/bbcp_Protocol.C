@@ -219,6 +219,14 @@ int bbcp_Protocol::Process(bbcp_Node *Node)
    int rc, NoGo = 0;
    char *cp;
 
+// If there is a r/t lock file, make sure it exists
+//
+   if ((bbcp_Config.Options & bbcp_RTCSRC) && bbcp_Config.rtLockf
+   &&  (bbcp_Config.rtLockd = open(bbcp_Config.rtLockf, O_RDONLY)) < 0)
+      {rc = errno, NoGo = 1;
+       bbcp_Emsg("Config", rc, "opening lock file", bbcp_Config.rtLockf);
+      }
+
 // Make sure all of the source files exist at this location. If there is an
 // error, defer exiting until after connecting to prevent a hang-up.
 //

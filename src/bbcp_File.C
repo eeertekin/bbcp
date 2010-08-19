@@ -20,6 +20,7 @@
 #include "bbcp_Emsg.h"
 #include "bbcp_File.h"
 #include "bbcp_Headers.h"
+#include "bbcp_RTCopy.h"
 
 /******************************************************************************/
 /*                         L o c a l   C l a s s e s                          */
@@ -51,6 +52,8 @@ extern bbcp_BuffPool bbcp_BPool;
 extern bbcp_BuffPool bbcp_CPool;
 
 extern bbcp_Config   bbcp_Config;
+
+extern bbcp_RTCopy   bbcp_RTCopy;
  
 /******************************************************************************/
 /*            E x t e r n a l   T h r e a d   I n t e r f a c e s             */
@@ -111,6 +114,7 @@ bbcp_File::bbcp_File(const char *path, bbcp_IO *iox,
    FSp         = fsp;
    bufreorders = 0;
    maxreorders = 0;
+   rtCopy      = (bbcp_Config.Options & bbcp_RTCSRC ? 1 : 0);
 }
   
 /******************************************************************************/
@@ -119,6 +123,10 @@ bbcp_File::bbcp_File(const char *path, bbcp_IO *iox,
   
 int bbcp_File::Close()
 {
+
+// Stop the rtCopy object if we may have started one.
+//
+   if (rtCopy) bbcp_RTCopy.Stop();
 
 // Prevent infinite loops
 //
@@ -276,6 +284,12 @@ int bbcp_File::Read_All(bbcp_BuffPool &inPool, int Vn)
        inPool.Abort(); return 200;
       }
 
+// If this is a real-time copy operation, start the rtcopy object
+//
+   if (rtCopy && !bbcp_RTCopy.Start(FSp, iofn, IOB->FD()))
+      {inPool.Abort(); return 200;
+      }
+
 // Set up checksumming. We would prefer to do this in the calling thread but
 // this is easier. One day we will generalize buffer piping.
 //
@@ -285,6 +299,7 @@ int bbcp_File::Read_All(bbcp_BuffPool &inPool, int Vn)
        if ((rc = bbcp_Thread_Start(bbcp_FileCSX, (void *)csP, &tid)) < 0)
            {bbcp_Emsg("File", rc, "starting file checksum thread.");
             delete csP;
+            if (rtCopy) bbcp_RTCopy.Stop();
             inPool.Abort(); return 201;
            }
        outPool =  &csP->csPool;
@@ -300,6 +315,10 @@ int bbcp_File::Read_All(bbcp_BuffPool &inPool, int Vn)
    if (blockSize ) rc = Read_Direct(&inPool, outPool);
       else rc=(Vn > 1 ? Read_Vector(&inPool, outPool, Vn)
                       : Read_Normal(&inPool, outPool));
+
+// Delete the real-time copy object if we have one to kill possible thread
+//
+   if (rtCopy) bbcp_RTCopy.Stop();
 
 // Check if we ended because with an error
 //
@@ -396,8 +415,12 @@ int bbcp_File::Read_Normal(bbcp_BuffPool *iBP, bbcp_BuffPool *oBP)
 // Simply read one buffer at a time, that's the fastest way to do this
 //
 // cerr <<"NORMAL READ SIZE=" <<rdsz <<endl;
-   while(bytesLeft > 0)
-      {
+   do {
+      // Do real-time copy if need be
+      //
+         if (rtCopy && (bytesLeft=bbcp_RTCopy.Prep(nextoffset,rdsz,rlen)) <= 0)
+            break;
+
       // Obtain buffer
       //
          if (!(bP = iBP->getEmptyBuff())) return -ENOBUFS;
@@ -413,7 +436,7 @@ int bbcp_File::Read_Normal(bbcp_BuffPool *iBP, bbcp_BuffPool *oBP)
          bP->boff   =  nextoffset; nextoffset += rlen;
          bP->blen   = rlen;
          oBP->putFullBuff(bP);
-      }
+      } while(rlen == rdsz && bytesLeft > 0);
 
 // All done
 //
@@ -446,7 +469,6 @@ int bbcp_File::Read_Vector(bbcp_BuffPool *iBP, bbcp_BuffPool *oBP, int vNum)
               ioVec[ivN].iov_len  = (rdsz < bytesLeft ? rdsz : bytesLeft);
               bytesLeft -= rdsz;
              }
-
 
       // Read data into the buffer
       //
@@ -551,7 +573,7 @@ int bbcp_File::Write_All(bbcp_BuffPool &inPool, int nstrms)
 
 // Check if we ended because of an error or end of file
 //
-   if (rc < 0) bbcp_Emsg("Write", -rc, "writing", iofn);
+   if (rc < 0 && rc != -ENOBUFS) bbcp_Emsg("Write", -rc, "writing", iofn);
 
 // Check if we should verify a checksum
 //
