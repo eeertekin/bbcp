@@ -83,7 +83,7 @@ bbcp_Args::~bbcp_Args()
 /*                               g e t a r g s                                */
 /******************************************************************************/
   
-char *bbcp_Args::getarg()
+char *bbcp_Args::getarg(int newln)
 {
 
 // Process argument array
@@ -94,14 +94,11 @@ char *bbcp_Args::getarg()
        return argval;
       }
 
-// Process stream arguments
+// Process stream or line arguments
 //
-   if (argval = arg_stream.GetToken()) return argval;
-
-// Reposition to new line and continue
-//
-   while(arg_stream.GetLine())
-        if (argval = arg_stream.GetToken()) return argval;
+   if (newln) {if ((argval = arg_stream.GetLine()) && *argval)  return argval;}
+      else do {if ((argval = arg_stream.GetToken()))            return argval;
+              }   while(arg_stream.GetLine());
 
 // All done, force continual end of arguments
 //

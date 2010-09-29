@@ -26,6 +26,7 @@ char                 *username;
 char                 *hostname;
 char                 *pathname;
 char                 *filename;
+char                 *filereqn;
 char                 *targpath;
 char                 *targetfn;
 long long             targetsz;
@@ -61,9 +62,11 @@ int              Xfr_Done();
 
      bbcp_FileSpec(bbcp_FileSystem *fsp=0, char *hname = 0, char *uname=0)
                   : next(0), username(uname), hostname(hname), pathname(0),
-                    filename(0), targpath(0), targetfn(0),
-                    targetsz(0), targsigf(0), fspec(0), fspec2(0), FSp(fsp) {}
+                    filename(0), filereqn(0), targpath(0), targetfn(0),
+                    targetsz(0), targsigf(0), fspec(0), fspec1(0), fspec2(0),
+                    FSp(fsp) {}
     ~bbcp_FileSpec() {if (fspec)    free(fspec);
+                      if (fspec1)   free(fspec1);
                       if (fspec2)   free(fspec2);
                       if (targpath) free(targpath);
                       if (targsigf) free(targsigf);
@@ -72,6 +75,7 @@ int              Xfr_Done();
 private:
 
 char            *fspec;
+char            *fspec1;
 char            *fspec2;
 bbcp_FileSystem *FSp;
 int              Xfr_Fixup();

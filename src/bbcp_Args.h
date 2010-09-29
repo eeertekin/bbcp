@@ -20,7 +20,7 @@ class bbcp_Args
 {
 public:
 
-char *getarg();
+char *getarg(int newln=0);
 
 char  getopt();
 

@@ -411,7 +411,7 @@ void bbcp_Config::Arguments(int argc, char **argv, int cfgfd)
        Cleanup(1, argv[0], cfgfd);
       }
 
-// Get all of the filenames in the input file list
+// Get all of the filenames in the input file list (only on agent)
 //
    if (inFN)
       {int infd;
@@ -432,13 +432,13 @@ void bbcp_Config::Arguments(int argc, char **argv, int cfgfd)
                   Hmsg1("Piped I/O incompatible with hostname specification.");
               infiles++;
              }
-       inStream.Close();
-       free(inFN);
+       inStream.Close(); free(inFN);
       }
 
 // Get all of the file names
 //
-   while(arglist.getarg())
+   
+   while(arglist.getarg(notctl))
         {lfsp = srcLast;
          srcLast = new bbcp_FileSpec;
          if (lfsp) lfsp->next = srcLast;
@@ -1201,7 +1201,7 @@ int bbcp_Config::ROpts(char *opts)
 // Set values to defaults
 //
    rtCheck   = 3;
-   rtLimit   =-1;
+   rtLimit   = 0;
    if (rtLockf) {free(rtLockf); rtLockf = 0;}
    Options &= ~(bbcp_RTCBLOK | bbcp_RTCHIDE);
 

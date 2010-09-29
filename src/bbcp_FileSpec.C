@@ -40,10 +40,14 @@ extern bbcp_FS_Unix  bbcp_UFS;
 #define bbcp_ENFMT "%d %c %lld %o %lld %lx %lx %s %s\n"
 #define bbcp_DEFMT "%d %c %lld %o %lld %lx %lx %31s %1025s"
 #define bbcp_DEGMT "%d %c %Ld  %o %Ld  %lx %lx %31s %1025s"
+
+#define SpaceAlt 0x1a
   
 /******************************************************************************/
 /*                               C o m p o s e                                */
 /******************************************************************************/
+
+// Compose is only called by the sink node!
 
 int bbcp_FileSpec::Compose(long long did, char *dpath, int dplen, char *fname)
 {
@@ -61,9 +65,15 @@ int bbcp_FileSpec::Compose(long long did, char *dpath, int dplen, char *fname)
    if (dpath[dplen-1] != '/') {*targetfn = '/'; targetfn++;}
    strcpy(targetfn, fn);
 
-// Create signature filename if append mode is enabled
+// Get the current state of the file or directory
 //
-   if ((bbcp_Config.Options & bbcp_SNK) && (bbcp_Config.Options & bbcp_APPEND))
+   if (retc = FSp->Stat(targpath, &Targ)) targetsz = 0;
+      else if (Targ.Otype != 'f') {targetsz = -1; return 0;}
+              else targetsz = (long long)Targ.size;
+
+// Create signature filename if append mode is enabled and this is a file
+//
+   if (bbcp_Config.Options & bbcp_APPEND)
       {char buff[1025], *rp;
        if ((rp = rindex(targetfn,'/'))) rp++;
           else rp = targetfn;
@@ -73,12 +83,6 @@ int bbcp_FileSpec::Compose(long long did, char *dpath, int dplen, char *fname)
        targsigf = strdup(buff);
        DEBUG("Append signature file is " <<targsigf);
       }
-
-// Get the current state of the file
-//
-   if (retc = FSp->Stat(targpath, &Targ)) targetsz = 0;
-      else if (Targ.Otype != 'f') targetsz = -1;
-              else targetsz = (long long)Targ.size;
    return retc == 0;
 }
 
@@ -110,7 +114,8 @@ int bbcp_FileSpec::Create_Path()
   
 int bbcp_FileSpec::Decode(char *buff, char *xName)
 {
-   char gnbuff[64], *sP;
+   static const char LwrCase = 0x20;
+   char gnbuff[64], *Space;
    char fnbuff[1032], *fmt = (char *)bbcp_DEFMT;
    int xtry=1, n;
 
@@ -134,6 +139,14 @@ int bbcp_FileSpec::Decode(char *buff, char *xName)
    if (Info.Group) free(Info.Group);
    Info.Group = strdup(gnbuff);
 
+// Check if we need to reconvert the file specification by replacing alternate
+// space characters with actual spaces.
+//
+   if (!(Info.Otype & LwrCase))
+      {filereqn = fspec2 = strdup(fnbuff); Space = fspec; Info.Otype |= LwrCase;
+       while((Space = index(Space, SpaceAlt))) *Space++ = ' ';
+      } else filereqn = fspec;
+
 // All done
 //
    return 0;
@@ -145,13 +158,26 @@ int bbcp_FileSpec::Decode(char *buff, char *xName)
 
 int bbcp_FileSpec::Encode(char *buff, size_t blen)
 {
+   static const char UprCase = 0xdf;
+   char *Space, Otype = Info.Otype;
    int n;
+
+// We have postponed handling spaces in file names until encode time. If there
+// spaces, we need to substitute them with a space char and tell the receiver
+// to reformat the name by upper-casing the object type. This is a symetric
+// operation.
+//
+   if ((Space = index(filename, ' ')))
+      {filereqn = fspec2 = strdup(filename); Otype &= UprCase;
+       Space = filereqn + (Space - filename);
+       do {*Space = SpaceAlt;} while((Space = index(Space+1, ' ')));
+      }
 
 // Format the specification
 //
-   n = snprintf(buff, blen, bbcp_ENFMT, seqno, Info.Otype, Info.fileid,
+   n = snprintf(buff, blen, bbcp_ENFMT, seqno, Otype, Info.fileid,
                 Info.mode, Info.size, Info.atime, Info.mtime, Info.Group,
-                filename);
+                filereqn);
 
 // Make sure all went well
 //
@@ -208,7 +234,7 @@ void bbcp_FileSpec::ExtendFileSpec(bbcp_FileSpec* headp)
          newp = new bbcp_FileSpec();
          snprintf(relative_name, sizeof(relative_name), "%s/%s",
                   filename, d->d_name);
-         newp->filename = strdup(relative_name);
+         newp->filereqn = newp->filename = strdup(relative_name);
 
          bufsz = strlen(pathname) + strlen(d->d_name) + 2;
          buf = (char*) malloc(bufsz);
@@ -283,7 +309,7 @@ void bbcp_FileSpec::Parse(char *spec)
 //
    if (fspec) free(fspec);
    fspec = strdup(spec);
-   username = hostname = pathname = filename = 0;
+   username = hostname = pathname = filename = filereqn = 0;
    seqno = bbcp_Config.lastseqno++;
 
 // Prepare to parse the spec
@@ -306,16 +332,18 @@ void bbcp_FileSpec::Parse(char *spec)
    if (*pathname == '/')
       {if ((filename = rindex(pathname+1, '/'))) filename++;
           else filename = pathname+1;
+       filereqn = filename;
       } else {
-       filename = pathname;
+       filename = filereqn = pathname;
        bbcp_Config.Options |= bbcp_RELATIVE;
        if (!username) username = bbcp_Config.SrcUser;
        if (!hostname) hostname = bbcp_Config.SrcHost;
        if (bbcp_Config.Options & bbcp_SRC && bbcp_Config.SrcBase)
-          { fspec2 = (char *)malloc(strlen(pathname)+bbcp_Config.SrcBlen+1);
-           strcpy(fspec2,   bbcp_Config.SrcBase);
-           strcpy(fspec2+bbcp_Config.SrcBlen, pathname);
-           pathname = fspec2; filename = fspec2+bbcp_Config.SrcBlen;
+          {fspec1 = (char *)malloc(strlen(pathname)+bbcp_Config.SrcBlen+1);
+           strcpy(fspec1,   bbcp_Config.SrcBase);
+           strcpy(fspec1+bbcp_Config.SrcBlen, pathname);
+           pathname = fspec1;
+           filename = filereqn = fspec1+bbcp_Config.SrcBlen;
            BuildPaths(); 
           }
       }
@@ -383,7 +411,7 @@ int bbcp_FileSpec::Stat(int complain)
    if (!FSp && !(FSp = bbcp_getFileSystem(pathname)))
       {char savefn = *filename;
        *filename = '\0';
-       FSp = bbcp_getFileSystem(pathname);
+       FSp = bbcp_getFileSystem((*pathname ? pathname : "."));
        *filename = savefn;
       }
 
@@ -502,7 +530,7 @@ void bbcp_FileSpec::BuildPaths()
          if (!same)
             {PS_New = new bbcp_FileSpec();
              PS_New->fspec = PS_New->pathname = strdup(pathname);
-             PS_New->filename = PS_New->fspec+pfxlen;
+             PS_New->filename = PS_New->filereqn = PS_New->fspec+pfxlen;
              PS_New->seqno = plen;
              if (PS_New->Stat(0))
                 {DEBUG("Path " <<pathname <<" not found.");

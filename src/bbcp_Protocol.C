@@ -494,6 +494,7 @@ int bbcp_Protocol::Request(bbcp_Node *Node)
 {
    long long totsz=0;
    int  retc, numfiles, texists;
+   int  outDir = (bbcp_Config.Options & bbcp_OUTDIR) != 0;
    bbcp_FileSpec *fp;
    char buff[1024];
 
@@ -523,7 +524,7 @@ int bbcp_Protocol::Request(bbcp_Node *Node)
       tdir_id = bbcp_Config.snkSpec->Info.fileid;
       else {bbcp_FileInfo Tinfo;
             if (!fs_obj || (!(retc = fs_obj->Stat(tdir, &Tinfo))
-            && Tinfo.Otype != 'd')) retc = ENOTDIR;
+            && Tinfo.Otype != 'd') && outDir) retc = ENOTDIR;
             if (retc) {bbcp_Fmsg("Request","Target directory",
                                  bbcp_Config.snkSpec->pathname,"not found");
                        return Request_exit(2);
@@ -538,7 +539,7 @@ int bbcp_Protocol::Request(bbcp_Node *Node)
 
 // If we have a number files, the target had better be a directory
 //
-   if (numfiles > 1 || bbcp_Config.Options & bbcp_OUTDIR)
+   if (numfiles > 1 || outDir)
       {if (!texists)
           {bbcp_Fmsg("Request", "Target directory",
                      bbcp_Config.snkSpec->pathname, "not found.");

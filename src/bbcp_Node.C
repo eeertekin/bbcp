@@ -529,7 +529,7 @@ int bbcp_Node::SendFile(bbcp_FileSpec *fp)
             _exit(100);
            }
         link_tid[i] = tid;
-        if (i >= iocount) {DEBUG("Thread " <<retc <<" assigned to data clocker");}
+        if (i >= iocount) {DEBUG("Thread " <<tid <<" assigned to data clocker");}
            else {DEBUG("Thread " <<tid <<" assigned to stream " <<i);}
        }
 
@@ -558,14 +558,15 @@ int bbcp_Node::SendFile(bbcp_FileSpec *fp)
        delete cxp;
       }
 
-// Make sure each link thread has terminated normally
+// Make sure each link thread has terminated normally. We wait for each thread
+// doing actual I/O as we will simply cancel the clocker thread it it exists.
 //
-   if (bbcp_Config.Xrate) bbcp_Thread_Detach(link_tid[dlcount--]);
-   for (i = 0; i < dlcount; i++)
+   if (bbcp_Config.Xrate) bbcp_Thread_Detach(link_tid[iocount]);
+   for (i = 0; i < iocount; i++)
        {if (tretc = (long)bbcp_Thread_Wait(link_tid[i])) retc = 128;
         DEBUG("Thread " <<link_tid[i] <<" stream " <<i <<" ended; rc=" <<tretc);
        }
-   if (bbcp_Config.Xrate) bbcp_Thread_Cancel(link_tid[dlcount+1]);
+   if (bbcp_Config.Xrate) bbcp_Thread_Cancel(link_tid[iocount]);
 
 // All done
 //
