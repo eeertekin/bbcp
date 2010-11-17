@@ -198,7 +198,7 @@ bbcp_Config::~bbcp_Config()
 #define Cat_Oct(x) {            cbp=n2a(x,&cbp[0],"%o");}
 #define Add_Str(x) {cbp[0]=' '; strcpy(&cbp[1], x); cbp+=strlen(x)+1;}
 
-#define bbcp_VALIDOPTS (char *)"-a.B:b:C:c.d:DeE:fFhi:I:kKl:L:m:nopP:q:rR.s:S:t:T:u:U:vVw:W:x:z"
+#define bbcp_VALIDOPTS (char *)"-a.B:b:C:c.d:DeE:fFhi:I:kKl:L:m:noOpP:q:rR.s:S:t:T:u:U:vVw:W:x:z"
 #define bbcp_SSOPTIONS bbcp_VALIDOPTS "MH:Y:"
 
 #define Hmsg1(a)   {bbcp_Fmsg("Config", a);    help(1);}
@@ -305,6 +305,8 @@ void bbcp_Config::Arguments(int argc, char **argv, int cfgfd)
        case 'n': Options |= bbcp_NODNS;
                  break;
        case 'o': Options |= bbcp_ORDER;
+                 break;
+       case 'O': Options |= bbcp_OMIT;
                  break;
        case 'p': Options |= bbcp_PCOPY;
                  break;
@@ -527,9 +529,9 @@ void bbcp_Config::help(int rc)
 H("Usage:   bbcp [Options] [Inspec] Outspec")
 I("Options: [-a [dir]] [-b [+]bf] [-B bsz] [-c [lvl]] [-C cfn] [-D] [-d path]")
 H("         [-e] [-E csa] [-f] [-F] [-h] [-i idfn] [-I slfn] [-k] [-K]")
-H("         [-L opts[@logurl]] [-l logf] [-m mode] [-p] [-P sec] [-r] [-R [args]]")
-H("         [-q qos] [-s snum] [-S srcxeq] [-T trgxeq] [-t sec] [-v] [-V]")
-H("         [-u loc] [-U wsz] [-w [=]wsz] [-x rate] [-z] [--]")
+H("         [-L opts[@logurl]] [-l logf] [-m mode] [-o] [-O] [-p] [-P sec]")
+H("         [-r] [-R [args]] [-q qos] [-s snum] [-S srcxeq] [-T trgxeq] [-t sec]")
+H("         [-v] [-V] [-u loc] [-U wsz] [-w [=]wsz] [-x rate] [-z] [--]")
 I("I/Ospec: [user@][host:]file")
 if (rc) exit(rc);
 I("Function: Secure and fast copy utility.")
@@ -557,6 +559,8 @@ H("-L args sets the logginng level and log message destination.")
 H("-m mode target file mode as [dmode/][fmode] but one mode must be present.")
 H("        Default dmode is 0755 and fmode is 0644 or it comes via -p option.")
 H("-s snum number of network streams to use (default is 4).")
+H("-o      enforces output ordering (writes in ascending offset order).")
+H("-O      omits files that already exist at the target node (useful with -r).")
 H("-p      preserve source mode, ownership, and dates.")
 H("-P sec  produce a progress message every sec seconds (15 sec minimum).")
 H("-q lvl  specifies the quality of service for routers that support QOS.")
@@ -797,6 +801,7 @@ void bbcp_Config::Config_Ctl(int rwbsz)
                                  Add_Opt('M');
 // if (Options & bbcp_NODNS)     Add_Opt('n');
    if (Options & bbcp_ORDER)     Add_Opt('o');
+   if (Options & bbcp_OMIT)      Add_Opt('O');
    if (Options & bbcp_PCOPY)     Add_Opt('p');
    if (Progint)                 {Add_Opt('P'); Add_Num(Progint);}
    if ((n = bbcp_Net.QoS()))    {Add_Opt('q'); Add_Num(n); }

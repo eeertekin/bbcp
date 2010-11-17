@@ -486,11 +486,20 @@ int bbcp_FileSpec::Xfr_Done()
                  "changed since the copy completed; append not possible.");
        bbcp_Fmsg("Xfr_Done", "File", targpath,
                  "changed since the copy completed; copy restarting.");
+       targetsz = 0;
+       return 0;
       }
 
-// The file exists, complain unless force has been specified
+// The file exists, complain unless force or omit has been specified
 //
-   if (!Force) return bbcp_Fmsg("Xfr_Done","File",targpath,"already exists.");
+   if (!Force)
+      {if (bbcp_Config.Options & bbcp_OMIT)
+          {if (bbcp_Config.Options & bbcp_VERBOSE)
+              bbcp_Fmsg("Xfr_Done", "Skipping",targpath,"already exists.");
+           return 1;
+          }
+       return bbcp_Fmsg("Xfr_Done", "File",    targpath,"already exists.");
+      }
 
 // All done, we can try to copy this file
 //
