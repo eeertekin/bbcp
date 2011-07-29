@@ -873,8 +873,13 @@ void bbcp_Config::Config_Xeq(int rwbsz)
 // Compute the number of buffers we will obtain
 //
    if (Options & bbcp_SRC) BNum = (Streams > Bfact ? Streams : Bfact)*3;
-      else BNum = (Streams > Bfact ? Streams : Bfact)*3
-                + (Options & bbcp_ORDER ? Streams*3 : 0) + BAdd;
+      else {BNum = (Streams > Bfact ? Streams : Bfact)*3 + BAdd;
+            if (Options & bbcp_ORDER && !BAdd)
+               {int n = MaxWindow/RWBsz;
+                BNum += (n > 100 ? 100 : (n < Streams*9 ? Streams*9 : n));
+               }
+           }
+   DEBUG("rwbsz=" <<RWBsz <<" BNum=" <<BNum);
 
 // Check if we have exceeded memory limitations
 //

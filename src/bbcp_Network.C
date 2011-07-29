@@ -584,10 +584,13 @@ void bbcp_Network::setOpts(const char *who, int xfd)
 //
    if DEBUGON
       {int xsz;
-       socklen_t szx = (socklen_t)sizeof(xsz);
+       socklen_t szseg = (socklen_t)sizeof(maxSegment);
+       socklen_t szx   = (socklen_t)sizeof(xsz);
+       if (getsockopt(xfd, IPPROTO_TCP, TCP_MAXSEG, (gsval_t)&maxSegment, &szseg))
+       bbcp_Emsg("MaxWSize", errno, "getting TCP maxseg.");
        if (getsockopt(xfd, SOL_SOCKET, WinSOP, &xsz, &szx)) xsz = -errno;
        DEBUG(who <<(Sender ? " send" : " recv") <<" window set to " <<wbsz
-                 <<" (actual=" <<xsz <<")");
+                 <<" (actual=" <<xsz <<" segsz=" <<maxSegment <<")");
       }
 }
   

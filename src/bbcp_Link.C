@@ -91,6 +91,7 @@ int bbcp_Link::Buff2Net()
          iov[0].iov_base = (char *)&outbuff->bHdr;
          iov[1].iov_base =  outbuff->data; iov[1].iov_len = outbuff->blen;
          wrsz = (ssize_t)outbuff->blen + hdrsz;
+//{char xbuff[80]; sprintf(xbuff, "S %lld\n",outbuff->boff); cerr <<xbuff;}
          if ((wlen = IOB.Write(iov, 2)) != wrsz) break;
 
       // Queue buffer for re-use

@@ -182,7 +182,7 @@ int bbcp_File::Passthru(bbcp_BuffPool *iBP, bbcp_BuffPool *oBP,
 // Record the maximum number of buffers we have here
 //
    maxbufs = iBP->BuffCount();
-   if (!(numadd = nstrms)) numadd = 1;
+   numadd  = nstrms+1;
 
 // Read all of the data until eof (note that we are single threaded)
 //
@@ -213,9 +213,9 @@ int bbcp_File::Passthru(bbcp_BuffPool *iBP, bbcp_BuffPool *oBP,
                 {maxreorders = curq;
                  DEBUG("Buff disorder " <<curq <<" rcvd " <<outbuff->boff <<" want " <<Offset);
                 }
-             if (curq >= maxbufs)
+             if (curq >= maxbufs-nstrms)
                 {if (!(--maxadds)) {rc = -ENOBUFS; break;}
-                 DEBUG("Too few buffs; adding " <<numadd <<" more.");
+                 DEBUG("Too few buffs; adding " <<numadd <<" more; " <<maxadds <<" tries left.");
                  bbcp_BPool.Allocate(numadd);
                  maxbufs += numadd;
                 }
