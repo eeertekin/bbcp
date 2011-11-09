@@ -116,7 +116,7 @@ char *bbcp_Args::getarg(int newln)
   
 char bbcp_Args::getopt()
 {
-   char optval, *optspec, *arglist;
+   char optval, optbuff[2] = {0,0}, *optspec, *arglist, *theOpt = optbuff;
 
 // Check if we really have any more options
 //
@@ -131,7 +131,7 @@ char bbcp_Args::getopt()
                if (arglist && (curopt = arg_stream.GetToken(&arglist)))
                   {if (*curopt != '-') {arg_stream.RetToken(); curopt = 0;}
                       else curopt++;
-                  }
+                  } else curopt = 0;
               }
               else if (Aloc >= Argc || *Argv[Aloc] != '-') curopt = 0;
                       else curopt = Argv[Aloc++]+1;
@@ -147,14 +147,22 @@ char bbcp_Args::getopt()
 
 // Check for extended options or single letter option
 //
-   if (optp && strlen(curopt) > 2 && *curopt == '-'
-   && (optspec = *optp%curopt)) {}
-      else if (!(optspec = index(vopts, (int)(*curopt)))
-           || *curopt == ':' || *curopt == '.')
-              {cerr <<epfx <<"Invalid option, '-" <<*curopt <<"'." <<endl;
-               endopts = 1;
-               return '?';
-              }
+        if (optp && strlen(curopt) > 2 && *curopt == '-'
+        && (optspec = *optp%(curopt+1)))
+           {theOpt = curopt; curopt = 0;
+            if (!(optspec = index(vopts, *optspec)))
+               {cerr <<epfx <<"Invalid option, '-" <<theOpt <<"'." <<endl;
+                endopts = 1;
+                return '?';
+               }
+           }
+   else if (!(optspec = index(vopts, *curopt))
+        || *curopt == ':' || *curopt == '.')
+           {cerr <<epfx <<"Invalid option, '-" <<*curopt <<"'." <<endl;
+            endopts = 1;
+            return '?';
+           }
+   else *optbuff = *curopt;
 
 // Check if this option requires an argument
 //
@@ -183,7 +191,7 @@ char bbcp_Args::getopt()
 
 // Complain about a missing argument
 //
-   cerr <<epfx <<"Value not specified for '-" <<*curopt <<"'." << endl;
+   cerr <<epfx <<"Value not specified for '-" <<theOpt <<"'." << endl;
    endopts = 1;
    return '?';
 }

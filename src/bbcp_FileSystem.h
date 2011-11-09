@@ -23,9 +23,10 @@ struct bbcp_FileInfo
        time_t    mtime;     // Modification time
        time_t    ctime;     // Create time
        char     *Group;     // -> Group name
-       char      Otype;     // 'd' | 'f' | '?'
+       char      Otype;     // 'd' | 'f' | 'p' | '?'
+       char      Xtype;     // 'x' | 0
 
-       bbcp_FileInfo() {Group = 0; Otype = '?';}
+       bbcp_FileInfo() : Group(0), Otype('?'), Xtype(0) {}
       ~bbcp_FileInfo() {if (Group) free(Group);}
 };
 
@@ -52,6 +53,18 @@ virtual int        Enough(long long bytes, int numfiles=1)=0;
 
         long long  FSID() {return fs_id;}
 
+// Return 0 if fsync was successful. Otherwise, -errno. If a filename is passed,
+// then an fsync is done on the directory as well.
+//
+virtual int        Fsync(const char *fn, int fd) {return 0;}
+
+// Returns the appropriate file system object for a path. Null if no filesystem
+// can handle the path. This is a static method specific to this class.
+//
+static const int        getFS_Pipe= 0x0001;
+
+static bbcp_FileSystem *getFS(const char *path, int opts=0);
+
 // Obtain the size of a file and return desired block size
 //
 virtual long long  getSize(int fd, long long *blksz=0) = 0;
@@ -59,7 +72,7 @@ virtual long long  getSize(int fd, long long *blksz=0) = 0;
 // Opens a file and returns the associated file object. Upon an error, returns
 // null with errno set to the error code (see Unix open()).
 //
-virtual bbcp_File *Open( const char *fn, int opts, int mode=0)=0;
+virtual bbcp_File *Open(const char *fn,int opts,int mode=0,const char *fa=0)=0;
 
 // MKDir create a directory identified by path. Upon error, returns -errno.
 // Otherwise returns a zero.
@@ -91,6 +104,8 @@ virtual int        setTimes(const char *path, time_t atime, time_t mtime)=0;
 //
 virtual int        Stat(const char *path, bbcp_FileInfo *finfo=0)=0;
 
+virtual int        Stat(const char *path, const char *dent, int fd,
+                        int nolnks=1, bbcp_FileInfo *finfo=0)=0;
 
               bbcp_FileSystem() : fs_path(0), fs_id(0), secSize(0), dIO(0) {}
 virtual      ~bbcp_FileSystem() {if (fs_path) free(fs_path);}
@@ -102,9 +117,4 @@ long long    fs_id;      // Unique filesystem identifier
 size_t       secSize;
 int          dIO;        // Direct I/O requested
 };
-
-// getFileSystem() returns a FileSystem object that is applicable to the
-// specified path. Returns null if no applicable filesystem can be found.
-//
-extern bbcp_FileSystem *bbcp_getFileSystem(const char *path);
 #endif

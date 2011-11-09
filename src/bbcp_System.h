@@ -47,6 +47,7 @@ char      *UserName();
 
 // Wait for a process to end
 //
+int        Waitpid(pid_t thePid);
 int        Waitpid(pid_t *pvec, int *ent=0, int nomsg=0);
 
            bbcp_System();

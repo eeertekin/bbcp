@@ -35,6 +35,13 @@ extern bbcp_Config   bbcp_Config;
 extern bbcp_Network  bbcp_Net;
 
 /******************************************************************************/
+/*                      S t a t i c   V a r i a b l e s                       */
+/******************************************************************************/
+  
+int bbcp_Link::Nudge = 0;
+int bbcp_Link::Wait  = 0;
+
+/******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
 
@@ -102,7 +109,7 @@ int bbcp_Link::Buff2Net()
 
       // Tell our buddy that it's ok to continue then do a rendezvous
       //
-         if (Buddy) {Buddy->Rendezvous.Post(); Rendezvous.Wait();}
+         if (Nudge) {Buddy->Rendezvous.Post(); if (Wait) Rendezvous.Wait();}
       }
 
 // Check how we ended this loop
@@ -118,7 +125,7 @@ int bbcp_Link::Buff2Net()
 
 // All done
 //
-   if (Buddy) Buddy->Rendezvous.Post();
+   if (Nudge) {Wait = 0; Buddy->Rendezvous.Post();}
    return (retc < 0 ? -retc : retc);
 }
 
@@ -190,7 +197,7 @@ int bbcp_Link::Net2Buff()
 
       // Tell our buddy that it's ok to continue then do a rendezvous
       //
-         if (Buddy) {Buddy->Rendezvous.Post(); Rendezvous.Wait();}
+         if (Nudge) {Buddy->Rendezvous.Post(); if (Wait) Rendezvous.Wait();}
       }
 
 // If we ended the loop with an error, abort the buffer pool to force all
@@ -198,7 +205,7 @@ int bbcp_Link::Net2Buff()
 // the buddy thread twice since that is the most that it may need to read.
 //
 
-   if (Buddy) {i = bbcp_Config.Streams;
+   if (Nudge) {Wait = 0; i = bbcp_Config.Streams;
                do {Buddy->Rendezvous.Post();} while(i--);
               }
    if (notdone)

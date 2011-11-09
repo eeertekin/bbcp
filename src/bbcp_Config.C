@@ -94,6 +94,7 @@ bbcp_Config::bbcp_Config()
    srcSpec   = 0;
    srcLast   = 0;
    snkSpec   = 0;
+   SynSpec   = 0;
    CBhost    = 0;
    CBport    = 0;
    CopyOpts  = 0;
@@ -149,6 +150,7 @@ bbcp_Config::bbcp_Config()
    rtLockd   = -1;
    rtLockf   = 0;
    ubSpec[0] = ' '; ubSpec[1] = ' '; ubSpec[2] = 0;
+   upSpec[0] = ' '; upSpec[1] = ' '; upSpec[2] = 0;
 }
 
 /******************************************************************************/
@@ -198,7 +200,7 @@ bbcp_Config::~bbcp_Config()
 #define Cat_Oct(x) {            cbp=n2a(x,&cbp[0],"%o");}
 #define Add_Str(x) {cbp[0]=' '; strcpy(&cbp[1], x); cbp+=strlen(x)+1;}
 
-#define bbcp_VALIDOPTS (char *)"-a.B:b:C:c.d:DeE:fFhi:I:kKl:L:m:noOpP:q:rR.s:S:t:T:u:U:vVw:W:x:z"
+#define bbcp_VALIDOPTS (char *)"-a.B:b:C:c.d:DeE:fFhi:I:kKl:L:m:nN:oOpP:q:rR.s:S:t:T:u:U:vVw:W:x:y:z"
 #define bbcp_SSOPTIONS bbcp_VALIDOPTS "MH:Y:"
 
 #define Hmsg1(a)   {bbcp_Fmsg("Config", a);    help(1);}
@@ -210,6 +212,7 @@ void bbcp_Config::Arguments(int argc, char **argv, int cfgfd)
 {
    bbcp_FileSpec *lfsp;
    int n, retc, xTrace = 1, infiles = 0, notctl = 0, rwbsz = 0;
+   int mspec = 0, isProg = 0;
    char *Slash, *inFN=0, c, cbhname[MAXHOSTNAMELEN+1];
    bbcp_Args arglist((char *)"bbcp: ");
 
@@ -220,9 +223,11 @@ void bbcp_Config::Arguments(int argc, char **argv, int cfgfd)
 
 // Establish valid options and the source of those options
 //
-   if (notctl)            arglist.Options(bbcp_SSOPTIONS, STDIN_FILENO);
-      else if (cfgfd < 0) arglist.Options(bbcp_VALIDOPTS, argc-1, ++argv);
-              else        arglist.Options(bbcp_SSOPTIONS, cfgfd, 1);
+   if (notctl)             arglist.Options(bbcp_SSOPTIONS, STDIN_FILENO);
+      else {if (cfgfd < 0) arglist.Options(bbcp_VALIDOPTS, argc-1, ++argv);
+               else        arglist.Options(bbcp_SSOPTIONS, cfgfd, 1);
+            setOpts(arglist);
+           }
 
 // Process the options
 //
@@ -299,10 +304,13 @@ void bbcp_Config::Arguments(int argc, char **argv, int cfgfd)
                         Cleanup(1, argv[0], cfgfd);
                     } else if (a2o("mode", arglist.argval, Mode, 1, 07777))
                               Cleanup(1, argv[0], cfgfd);
+                 mspec = 1;
                  break;
        case 'M': Options |= bbcp_OUTDIR;
                  break;
        case 'n': Options |= bbcp_NODNS;
+                 break;
+       case 'N': if (Unpipe(arglist.argval)) Cleanup(1, argv[0], cfgfd);
                  break;
        case 'o': Options |= bbcp_ORDER;
                  break;
@@ -319,7 +327,7 @@ void bbcp_Config::Arguments(int argc, char **argv, int cfgfd)
                  break;
        case 'r': Options |= bbcp_RECURSE;
                  break;
-       case 'R': Options |= bbcp_RTCOPY;
+       case 'R': Options |= (bbcp_RTCOPY | bbcp_NOFSZCHK);
                  if (rtSpec) free(rtSpec);
                  rtSpec = (arglist.argval ? strdup(arglist.argval) : 0);
                  break;
@@ -358,6 +366,14 @@ void bbcp_Config::Arguments(int argc, char **argv, int cfgfd)
        case 'Y': if (SecToken) free(SecToken);
                  SecToken = strdup(arglist.argval);
                  break;
+       case 'y': Options &= ~bbcp_DSYNC;
+                      if (!strcmp("d", arglist.argval)) Options |= bbcp_FSYNC;
+                 else if (!strcmp("dd",arglist.argval)) Options |= bbcp_DSYNC;
+                 else{bbcp_Fmsg("Config","Invalid sync option -",arglist.argval);
+                      Cleanup(1, argv[0], cfgfd);
+                     }
+                 SynSpec = strdup(arglist.argval);
+                 break;
        case 'z': Options |= bbcp_CON2SRC;
                  break;
        case '-': break;
@@ -390,6 +406,31 @@ void bbcp_Config::Arguments(int argc, char **argv, int cfgfd)
    if ((Options & bbcp_APPEND) && (*csString || (csOpts & bbcp_csPrint)))
       {bbcp_Fmsg("Config", "-a and -E ...= are mutually exclusive.");
        Cleanup(1, argv[0], cfgfd);
+      }
+
+// Check for options mutually exclusive with '-N'
+//
+   if (Options & bbcp_XPIPE)
+      {int isBad = 0;
+       if (Options & bbcp_APPEND)
+          isBad = bbcp_Fmsg("Config", "-N xx and -a are mutually exclusive.");
+       if (SrcBuff)
+          isBad = bbcp_Fmsg("Config", "-N xx and -d are mutually exclusive.");
+       if (Options & bbcp_FORCE && Options & bbcp_OPIPE)
+          isBad = bbcp_Fmsg("Config", "-N o  and -f are mutually exclusive.");
+       if (Options & bbcp_NOUNLINK)
+          isBad = bbcp_Fmsg("Config", "-N xx and -K are mutually exclusive.");
+       if (mspec && Options & bbcp_OPIPE)
+          isBad = bbcp_Fmsg("Config", "-N o  and -m are mutually exclusive.");
+       if (Options & bbcp_PCOPY && Options & bbcp_OPIPE)
+          isBad = bbcp_Fmsg("Config", "-N o  and -p are mutually exclusive.");
+       if (Options & bbcp_RECURSE)
+          isBad = bbcp_Fmsg("Config", "-N xx and -r are mutually exclusive.");
+       if (Options & bbcp_RTCOPY)
+          isBad = bbcp_Fmsg("Config", "-N xx and -R are mutually exclusive.");
+       if (Options & (bbcp_IDIO | bbcp_ODIO))
+          isBad = bbcp_Fmsg("Config", "-N xx and -u are mutually exclusive.");
+       if (isBad) Cleanup(1, argv[0], cfgfd);
       }
 
 // Check for options mutually exclusice with '-r'
@@ -437,15 +478,19 @@ void bbcp_Config::Arguments(int argc, char **argv, int cfgfd)
        inStream.Close(); free(inFN);
       }
 
+// Determine if we are going to be parsinga program specification
+//
+   if (notctl) isProg = ((Options & bbcp_SRC) && (Options & bbcp_IPIPE))
+                     || ((Options & bbcp_SNK) && (Options & bbcp_OPIPE));
+
 // Get all of the file names
 //
-   
    while(arglist.getarg(notctl))
         {lfsp = srcLast;
          srcLast = new bbcp_FileSpec;
          if (lfsp) lfsp->next = srcLast;
             else srcSpec = srcLast;
-         srcLast->Parse(arglist.argval);
+         srcLast->Parse(arglist.argval, isProg);
          if (srcLast->username && !srcLast->hostname)
             Hmsg2("Missing host name for user", srcLast->username);
          if (srcLast->hostname && !srcLast->pathname)
@@ -458,7 +503,7 @@ void bbcp_Config::Arguments(int argc, char **argv, int cfgfd)
         if (Options & bbcp_SRC)
            {if (!srcSpec)
                {bbcp_Fmsg("Config", "Source file not specified."); exit(3);}
-            Options &= ~bbcp_RTCSNK;
+            Options &= ~(bbcp_RTCSNK|bbcp_OPIPE|bbcp_DSYNC);
            }
    else if (Options & bbcp_SNK)
            {if (infiles > 1)
@@ -466,15 +511,31 @@ void bbcp_Config::Arguments(int argc, char **argv, int cfgfd)
             if (!(snkSpec = srcSpec))
                {bbcp_Fmsg("Config", "Target file not specified."); exit(3);}
             srcSpec = srcLast = 0;
-            Options &= ~bbcp_RTCSRC;
+            if (Options & bbcp_IPIPE) Options |= bbcp_NOFSZCHK;
+            if (Options & bbcp_OPIPE) Options &=~bbcp_DSYNC;
+            Options &= ~(bbcp_RTCSRC|bbcp_IPIPE);
            }
    else    {     if (infiles == 0) Hmsg1("Copy source not specified.")
             else if (infiles == 1) Hmsg1("Copy target not specified.")
-            else if (infiles >  2) Options |= bbcp_OUTDIR;
+            else if (infiles >  2)
+                    {if (!(Options & bbcp_IPIPE)) Options |= bbcp_OUTDIR;
+                        else {upSpec[1] = 0;
+                              bbcp_Fmsg("Only one source allowed with '-N '",
+                                        upSpec, "'.");
+                              exit(3);
+                             }
+                    }
             snkSpec  = srcLast;
             lfsp->next = 0;
             srcLast = lfsp;
            }
+
+// For output pipes we do direct processing and must order output.
+//
+   if (Options & bbcp_OPIPE)
+      {Options &= ~(bbcp_OUTDIR   | bbcp_RELATIVE | bbcp_DSYNC);
+       Options |=  (bbcp_NOFSZCHK | bbcp_KEEP | bbcp_ORDER);
+      }
 
 // Set appropriate debugging level
 //
@@ -529,9 +590,9 @@ void bbcp_Config::help(int rc)
 H("Usage:   bbcp [Options] [Inspec] Outspec")
 I("Options: [-a [dir]] [-b [+]bf] [-B bsz] [-c [lvl]] [-C cfn] [-D] [-d path]")
 H("         [-e] [-E csa] [-f] [-F] [-h] [-i idfn] [-I slfn] [-k] [-K]")
-H("         [-L opts[@logurl]] [-l logf] [-m mode] [-o] [-O] [-p] [-P sec]")
-H("         [-r] [-R [args]] [-q qos] [-s snum] [-S srcxeq] [-T trgxeq] [-t sec]")
-H("         [-v] [-V] [-u loc] [-U wsz] [-w [=]wsz] [-x rate] [-z] [--]")
+H("         [-L opts[@logurl]] [-l logf] [-m mode] [-n] [-N nio] [-o] [-O] [-p]")
+H("         [-P sec] [-r] [-R [args]] [-q qos] [-s snum] [-S srcxeq] [-T trgxeq]")
+H("         [-t sec] [-v] [-V] [-u loc] [-U wsz] [-w [=]wsz] [-x rate] [-y] [-z] [--]")
 I("I/Ospec: [user@][host:]file")
 if (rc) exit(rc);
 I("Function: Secure and fast copy utility.")
@@ -558,6 +619,9 @@ H("-l logf logs standard error to the specified file.")
 H("-L args sets the logginng level and log message destination.")
 H("-m mode target file mode as [dmode/][fmode] but one mode must be present.")
 H("        Default dmode is 0755 and fmode is 0644 or it comes via -p option.")
+H("-n      do not use DNS to resolve IP addresses to host names.")
+H("-N nio  enable named pipe processing; nio specifies input and output state:")
+H("        i -> input pipe or program, o -> output pipe or program")
 H("-s snum number of network streams to use (default is 4).")
 H("-o      enforces output ordering (writes in ascending offset order).")
 H("-O      omits files that already exist at the target node (useful with -r).")
@@ -577,13 +641,16 @@ H("-U wsz  unnegotiated window size (sets maximum and default for all parties)."
 H("-w wsz  desired window size for transmission (the default is 128K).")
 H("        Prefixing wsz with '=' disables autotuning in favor of a fixed wsz.")
 H("-x rate is the maximum transfer rate allowed in bytes, K, M, or G.")
+H("-y what perform fsync before closing the output file when what is 'd'.")
+H("        When what is 'dd' then the file and directory are fsynced.")
 H("-z      use reverse connection protocol (i.e., target to source).")
 H("--      allows an option with a defaulted optional arg to appear last.")
 I("user    the user under which the copy is to be performed. The default is")
 H("        to use the current login name.")
 H("host    the location of the file. The default is to use the current host.")
 H("Inspec  the name of the source file(s) (also see -I).")
-H("Outspec the name of the target file or directory (required if >1 input file).")
+H("Outspec the name of the target file or directory (required if >1 input file.\n")
+H("******* Complete details at: http://www.slac.stanford.edu/~abh/bbcp")
 I(bbcp_Version.Version)
 exit(rc);
 }
@@ -604,6 +671,10 @@ int bbcp_Config::ConfigInit(int argc, char **argv)
    char *homedir, *cfn = (char *)"/.bbcp.cf";
    int  retc;
    char *ConfigFN;
+
+// Ignore sigpipe
+//
+   signal(SIGPIPE, SIG_IGN);
 
 // Make sure we have at least one argument to determine who we are
 //
@@ -640,10 +711,6 @@ int bbcp_Config::ConfigInit(int argc, char **argv)
                  bbcp_Emsg("config", errno, "setting FD limit");
             }
    }
-
-// Ignore sigpipe
-//
-   signal(SIGPIPE, SIG_IGN);
 
 // All done
 //
@@ -792,14 +859,16 @@ void bbcp_Config::Config_Ctl(int rwbsz)
    if (Options & bbcp_NOSPCHK)   Add_Opt('F');
    if (Options & bbcp_KEEP)      Add_Opt('k');
    if (LogSpec)                 {Add_Opt('L'); Add_Str(LogSpec);}
-                                 Add_Opt('m');
+   if (!(Options & bbcp_XPIPE)) {Add_Opt('m');
    if (ModeD)                   {              Add_Oct(ModeD); *cbp++ ='/';
                                                Cat_Oct(Mode);
                                 }
       else                                     Add_Oct(Mode);
+                                }
    if (Options & bbcp_OUTDIR || (Options & bbcp_RELATIVE && SrcBase))
                                  Add_Opt('M');
 // if (Options & bbcp_NODNS)     Add_Opt('n');
+   if (Options & bbcp_XPIPE)    {Add_Opt('N'); Add_Str(upSpec);}
    if (Options & bbcp_ORDER)     Add_Opt('o');
    if (Options & bbcp_OMIT)      Add_Opt('O');
    if (Options & bbcp_PCOPY)     Add_Opt('p');
@@ -821,6 +890,7 @@ void bbcp_Config::Config_Ctl(int rwbsz)
                                 }
                                  Add_Opt('Y'); Add_Str(SecToken);
    if (Xrate)                   {Add_Opt('x'); Add_Num(Xrate);}
+   if (SynSpec)                 {Add_Opt('y'); Add_Str(SynSpec);}
    if (Options & bbcp_CON2SRC)   Add_Opt('z');
    CopyOptt = cbuff - cbp;
    if (csSpec)                  {Add_Opt('E'); Add_Str(csSpec);}
@@ -873,7 +943,8 @@ void bbcp_Config::Config_Xeq(int rwbsz)
 // Compute the number of buffers we will obtain
 //
    if (Options & bbcp_SRC) BNum = (Streams > Bfact ? Streams : Bfact)*3;
-      else {BNum = (Streams > Bfact ? Streams : Bfact)*3 + BAdd;
+      else {BNum = (Streams > Bfact ? Streams : Bfact)
+                 * (Options & bbcp_ORDER ? 9 : 3) + BAdd;
             if (Options & bbcp_ORDER && !BAdd)
                {int n = MaxWindow/RWBsz;
                 BNum += (n > 100 ? 100 : (n < Streams*9 ? Streams*9 : n));
@@ -1270,6 +1341,55 @@ void bbcp_Config::setCS(char *inCS)
 }
   
 /******************************************************************************/
+/*                               s e t O p t s                                */
+/******************************************************************************/
+  
+void bbcp_Config::setOpts(bbcp_Args &Args)
+{
+     Args.Option("append",     1, 'a', '.');
+     Args.Option("buffers",    1, 'b', ':');
+     Args.Option("buffsz",     6, 'B', ':');
+     Args.Option("compress",   1, 'c', '.');
+     Args.Option("config",     6, 'C', ':');
+     Args.Option("dirbase",    3, 'd', ':');
+     Args.Option("debug",      5, 'D', 0);
+// e
+     Args.Option("checksum",   5, 'E', ':');
+     Args.Option("force",      1, 'f', 0);
+     Args.Option("nofschk",    4, 'F', ':');
+     Args.Option("help",       1, 'h', ':');
+     Args.Option("idfile",     1, 'i', ':');
+     Args.Option("infiles",    2, 'I', ':');
+     Args.Option("keep",       1, 'k', 0);
+// K
+     Args.Option("logfile",    1, 'l', ':');
+// L
+     Args.Option("mode",       1, 'm', ':');
+     Args.Option("nodns",      1, 'n', 0);
+     Args.Option("pipe",       4, 'N', ':');
+     Args.Option("order",      1, 'o', 0);
+     Args.Option("omit",       4, 'O', 0);
+     Args.Option("preserve",   1, 'p', 0);
+     Args.Option("progress",   4, 'P', ':');
+     Args.Option("qos",        3, 'q', ':');
+     Args.Option("recursive",  1, 'r', 0);
+     Args.Option("realtime",   4, 'R', ':');
+     Args.Option("streams",    1, 's', ':');
+// S
+     Args.Option("timelimit",  1, 't', ':');
+// T
+     Args.Option("verbose",    1, 'v', 0);
+     Args.Option("vverbose",   2, 'V', 0);
+     Args.Option("unbuffered", 1, 'u', ':');
+// U
+     Args.Option("windowsz",   1, 'w', ':');
+     Args.Option("xfrrate",    1, 'x', ':');
+// Y
+     Args.Option("sync",       4, 'y', 0);
+     Args.Option("reverse",    3, 'z', 0);
+}
+
+/******************************************************************************/
 /*                                s e t R W B                                 */
 /******************************************************************************/
 
@@ -1324,7 +1444,29 @@ int bbcp_Config::Unbuff(char *opts)
          }
     return 0;
 }
+
+/******************************************************************************/
+/*                                U n p i p e                                 */
+/******************************************************************************/
   
+int bbcp_Config::Unpipe(char *opts)
+{
+    char *opt = opts;
+
+    while(*opt)
+         {switch(*opt)
+                {case 'i': Options |= bbcp_IPIPE;
+                           upSpec[0] = 'i'; break;
+                 case 'o': Options |= bbcp_OPIPE;
+                           upSpec[1] = 'o'; break;
+                 default:  bbcp_Fmsg("Config","Invalid named pipe options -",opts);
+                           return -1;
+                }
+          opt++;
+         }
+    return 0;
+}
+
 /******************************************************************************/
 /*                               C l e a n u p                                */
 /******************************************************************************/

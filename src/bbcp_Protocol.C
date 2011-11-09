@@ -57,13 +57,35 @@ extern "C"
 void *bbcp_ProtocolLS(void *pp)
 {
    bbcp_FileSpec  *fP = bbcp_Config.srcSpec;
+   char xBuff[128];
+   time_t tNow, xMsg = time(0)+bbcp_Config.Progint;
+   int numD = 0, numF = 0;
+   int Blab = (bbcp_Config.Options & bbcp_VERBOSE) || bbcp_Config.Progint;
 
 // Extend all directories with the files therein
 //
+   if (Blab) bbcp_Fmsg("Dirlist", "Indexing files to be copied...");
    while(fP)
-        {if ('d' == fP->Info.Otype) fP->ExtendFileSpec(bbcp_Config.srcSpec);
+        {if ('d' == fP->Info.Otype)
+            {numD++; fP->ExtendFileSpec(bbcp_Config.srcSpec, numF);}
          fP = fP->next;
+         if (bbcp_Config.Progint && (tNow = time(0)) >= xMsg)
+            {sprintf(xBuff, "%d file%s in %d director%s so far...",
+                     numF, (numF == 1 ? "" : "s"),
+                     numD, (numD == 1 ? "y": "ies"));
+             bbcp_Fmsg("Dirlist", "Found", xBuff);
+             xMsg = tNow+bbcp_Config.Progint;
+            }
         }
+
+// Indicate what we found if so wanted
+//
+   if (Blab)
+      {sprintf(xBuff, "%d file%s in %d director%s.",
+               numF, (numF == 1 ? "" : "s"),
+               numD, (numD == 1 ? "y": "ies"));
+       bbcp_Fmsg("Source", "Copying", xBuff);
+      }
 
 // All done
 //
@@ -645,20 +667,22 @@ int bbcp_Protocol::Request_flist(long long &totsz)
    while((lp = Remote->GetLine()) && (noteol = strcmp(lp, "eol")))
         {fp = new bbcp_FileSpec(fs_obj, Remote->NodeName());
          if (fp->Decode(lp)) {numfiles = -1; break;}
-         if (fp->Compose(tdir_id, tdir, tdln, tfn) && (retc = fp->Xfr_Done()))
-            {delete fp; if (retc < 0) {numfiles = -1; break;}}
-            else if (fp->Info.Otype == 'd')
+
+               if (fp->Compose(tdir_id, tdir, tdln, tfn)
+               &&  (retc = fp->Xfr_Done()))
+                  {delete fp; if (retc < 0) {numfiles = -1; break;}}
+          else if (fp->Info.Otype == 'd')
                     {if (lastdp) lastdp->next = fp;
                         else bbcp_Config.srcPath = fp;
                      lastdp = fp;
                     }
-                    else if (fp->Info.Otype == 'f')
-                         {numfiles++;
-                          totsz += fp->Info.size;
-                          if (lastfp) lastfp->next = fp;
-                             else bbcp_Config.srcSpec = fp;
-                          lastfp = fp;
-                         }
+/*PIPE*/  else if (fp->Info.Otype == 'f' || fp->Info.Otype == 'p')
+                  {numfiles++;
+                   totsz += fp->Info.size;
+                   if (lastfp) lastfp->next = fp;
+                   else bbcp_Config.srcSpec = fp;
+                   lastfp = fp;
+                  }
         }
 
 // Flush the input queue if need be

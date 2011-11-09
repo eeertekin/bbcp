@@ -33,6 +33,8 @@ char        *LinkName() {return Lname;}
 
 void         setBuddy(bbcp_Link *mybuddy) {Buddy = mybuddy;}
 
+static void  setNudge() {Nudge = 1; Wait = 1;}
+
 int          Buff2Net();
 
 int          Net2Buff();
@@ -43,6 +45,9 @@ int          Net2Buff();
 int          LinkNum;
 
 private:
+
+static int      Nudge;
+static int      Wait;
 
 bbcp_Link      *Buddy;
 bbcp_Semaphore  Rendezvous;

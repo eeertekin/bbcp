@@ -211,6 +211,37 @@ char *bbcp_System::UserName()
 /******************************************************************************/
 /*                               W a i t p i d                                */
 /******************************************************************************/
+
+int bbcp_System::Waitpid(pid_t thePid)
+{
+   int rc;
+#ifdef AIX
+   union wait estat;
+#else
+   int estat;
+#endif
+
+// Check if we should wait for the process to end
+//
+   if (thePid) {do {rc = waitpid(thePid, (int *)&estat, 0);}
+                   while((rc < 0 && errno == EINTR)
+                      || (rc > 0 && WIFSTOPPED(estat)));
+               }
+               else return 0;
+
+// Determine ending status
+//
+        if (WIFSIGNALED(estat)) rc = -ECANCELED;
+   else if (WIFEXITED(estat))   rc =  WEXITSTATUS(estat);
+   else rc = 0;
+
+// Debug and return status
+//
+   DEBUG("Process " <<thePid <<" ended; rc=" <<rc);
+   return rc;
+}
+
+/******************************************************************************/
   
 int bbcp_System::Waitpid(pid_t *pvec, int *ent, int nomsg)
 {

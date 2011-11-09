@@ -29,8 +29,6 @@
 
 extern bbcp_Config   bbcp_Config;
 
-extern bbcp_FS_Unix  bbcp_UFS;
-
 /******************************************************************************/
 /*                     L o c a l   D e f i n i t i o n s                      */
 /******************************************************************************/
@@ -55,6 +53,12 @@ int bbcp_FileSpec::Compose(long long did, char *dpath, int dplen, char *fname)
    char *fn = (fname ? fname : filename);
    bbcp_FileInfo Targ;
 
+// Do some debugging
+//
+   DEBUG("Compose " <<(targpath ? targpath : "?") <<' ' <<did <<' ' <<dpath <<' ' <<fname);
+
+// If the output is a program, there is nothing to compse
+
 // Set up the target file name
 //
    n = dplen + 1 + strlen(fn) + 1;
@@ -67,9 +71,14 @@ int bbcp_FileSpec::Compose(long long did, char *dpath, int dplen, char *fname)
 
 // Get the current state of the file or directory
 //
-   if (retc = FSp->Stat(targpath, &Targ)) targetsz = 0;
-      else if (Targ.Otype != 'f') {targetsz = -1; return 0;}
-              else targetsz = (long long)Targ.size;
+        if (retc = FSp->Stat(targpath, &Targ)) targetsz = 0;
+   else if (Targ.Otype == 'p' && (bbcp_Config.Options & bbcp_XPIPE))
+                               {targetsz =  0; return 0;}
+   else if (Targ.Otype != 'f') {targetsz = -1; return 0;}
+   else {targetsz = (long long)Targ.size;
+         Info.Otype = Targ.Otype;
+         Info.Xtype = Targ.Xtype;
+        }
 
 // Create signature filename if append mode is enabled and this is a file
 //
@@ -190,14 +199,14 @@ int bbcp_FileSpec::Encode(char *buff, size_t blen)
 /*                        E x t e n d F i l e S p e c                         */
 /******************************************************************************/
 
-void bbcp_FileSpec::ExtendFileSpec(bbcp_FileSpec* headp)
+void bbcp_FileSpec::ExtendFileSpec(bbcp_FileSpec* headp, int &numF)
 {
    struct dirent* d;
+   bbcp_FileInfo  fInfo;
    bbcp_FileSpec* newp;
    bbcp_FileSpec* lastp;
-   char*          buf;
-   int            bufsz;
-   char           relative_name[256];
+   int            dirFD, pathLen = strlen(pathname);
+   char           relative_name[1024], absolute_name[4096];
    struct stat    sbuf;
    DIR           *dirp;
 
@@ -216,58 +225,58 @@ void bbcp_FileSpec::ExtendFileSpec(bbcp_FileSpec* headp)
    for (lastp = headp ; lastp->next != NULL ; lastp = lastp->next)
       ; // nothing to do -- just setting lastp
 
+   // Open the directory as we will need a file descriptor to it. Different
+   // operaing systems have different ways of doing this.
    //
+#ifdef SUN
+   if ((dirFD = open(pathname, O_RDONLY)) < 0) return;
+   if (!(dirp = fdopendir(dirFD))) {close(dirFD); return;}
+#else
+   if (!(dirp = opendir(pathname))) return;
+   dirFD = dirfd(dirp);
+#endif
+
    // This loop walks the tree rooted at pathname, adding each file it
    // finds to the list at headp.
    //
-   if ((dirp = opendir(pathname)))
    for (d = readdir(dirp) ; NULL != d ; d = readdir(dirp))
    {
-      //
       // Ignore "." and ".."
       //
-      if ((0 != strcmp(".", d->d_name)) && (0 != strcmp("..", d->d_name)))
-      {
-         //
-         // Initialize a new FileSpec object to represent this file
-         //
-         newp = new bbcp_FileSpec();
-         snprintf(relative_name, sizeof(relative_name), "%s/%s",
-                  filename, d->d_name);
-         newp->filereqn = newp->filename = strdup(relative_name);
+      if (!strcmp(".", d->d_name) || !strcmp("..", d->d_name)) continue;
 
-         bufsz = strlen(pathname) + strlen(d->d_name) + 2;
-         buf = (char*) malloc(bufsz);
-         if (NULL == buf)
-         {
-            cout << "out of memory" << endl;
-            exit(2);
-         }
-         snprintf(buf, bufsz, "%s/%s", pathname, d->d_name);
+      // Generate full pathname to be used in cases where we don't have fstatat
+      // as well as recording the full path in the file specification.
+      //
+      snprintf(absolute_name,sizeof(absolute_name),"%s/%s",pathname,d->d_name);
 
-         newp->pathname = buf;
-         newp->targetsz = 0;
-         newp->seqno = lastp->seqno + 1;
+      // Ignore symlinks or entries we can't stat for any reason
+      //
+      if (0 != FSp->Stat(absolute_name, d->d_name, dirFD, 1, &fInfo)) continue;
 
-         //
-         // Fill in the file's stat information, bail on failure
-         //
-         if (0 != FSp->Stat(newp->pathname, &(newp->Info)))
-         {
-            free(newp->filename);
-            delete newp;
-            continue;
-         }
+      // Skip anything that isn't a file or a directory here
+      //
+      if (fInfo.Otype == 'f') numF++;
+         else if (fInfo.Otype != 'd') continue;
 
-         newp->FSp = FSp;
+      // Initialize a new FileSpec object to represent this file
+      //
+      newp = new bbcp_FileSpec();
+      snprintf(relative_name, sizeof(relative_name), "%s/%s",
+               filename, d->d_name);
+      newp->filereqn = newp->filename = strdup(relative_name);
 
-         newp->next = NULL;
-         lastp->next = newp;
-         lastp = newp;
-      }
+      newp->pathname = strdup(absolute_name);
+      newp->targetsz = 0;
+      newp->seqno = lastp->seqno + 1;
+      newp->Info = fInfo; fInfo.Group = 0;
+      newp->FSp = FSp;
+      newp->next = NULL;
+      lastp->next = newp;
+      lastp = newp;
    }
 
-   if (dirp) closedir(dirp);
+   if (dirp) closedir(dirp); // This also closes the underlying fd
 }
 
 /******************************************************************************/
@@ -284,8 +293,7 @@ int bbcp_FileSpec::Finalize(int retc)
        FSp->RM(targpath);
       }
       else if (bbcp_Config.Options & bbcp_PCOPY) setStat();
-              else if (Info.Otype == 'f')
-                      FSp->setMode(targpath, bbcp_Config.Mode);
+              else FSp->setMode(targpath, bbcp_Config.Mode);
 
 // Delete the signature file if one exists
 //
@@ -300,7 +308,7 @@ int bbcp_FileSpec::Finalize(int retc)
 /*                                 P a r s e                                  */
 /******************************************************************************/
   
-void bbcp_FileSpec::Parse(char *spec)
+void bbcp_FileSpec::Parse(char *spec, int isPipe)
 {
    char *sp, *cp;
    int i;
@@ -324,6 +332,13 @@ void bbcp_FileSpec::Parse(char *spec)
        cp++;
       }
    pathname = sp;
+
+// If this is a program, separate the program from its arguments
+//
+   if (isPipe && (fileargs = index(pathname, ' ')))
+      {*fileargs++ = 0;
+       while(*fileargs == ' ') fileargs++;
+      }
 
 // If this is an absolute path then we need to split it into a path component
 // and a filename component. Otherwise, this path will may need to be qualified
@@ -403,16 +418,20 @@ int bbcp_FileSpec::setStat()
   
 int bbcp_FileSpec::Stat(int complain)
 {
-    int retc;
+    int retc, fsOpts;
 
 // Get the filesystem for this file if we do not have one (note that the
 // filespec object only becomes valid after the first stat() call).
 //
-   if (!FSp && !(FSp = bbcp_getFileSystem(pathname)))
-      {char savefn = *filename;
-       *filename = '\0';
-       FSp = bbcp_getFileSystem((*pathname ? pathname : "."));
-       *filename = savefn;
+   if (!FSp)
+      {fsOpts = (bbcp_Config.Options&bbcp_XPIPE ? bbcp_FileSystem::getFS_Pipe:0);
+       if (!(FSp = bbcp_FileSystem::getFS(pathname, fsOpts)))
+          {char savefn = *filename;
+           *filename = '\0';
+           FSp = bbcp_FileSystem::getFS(*pathname ? pathname : ".", fsOpts);
+           *filename = savefn;
+          }
+       DEBUG("getFS " <<(fsOpts ? "pipe " : "norm ") <<pathname);
       }
 
 // Get info for the file
@@ -463,13 +482,18 @@ int bbcp_FileSpec::WriteSigFile()
   
 int bbcp_FileSpec::Xfr_Done()
 {
+   struct stat sbuff;
    int rc, Force = bbcp_Config.Options & bbcp_FORCE;
+
+// Check if the output was a pipe
+//
+   if (bbcp_Config.Options & bbcp_OPIPE) {targetsz = 0; return 0;}
 
 // If this is an APPEND request, build the signature file
 //
 //cerr <<"tsz=" <<targetsz <<" isz=" <<Info.size <<" sigf=" <<targsigf <<endl;
    if (bbcp_Config.Options & bbcp_APPEND)
-      {if (!bbcp_UFS.Stat(targsigf))
+      {if (stat(targsigf, &sbuff))
           {rc = Xfr_Fixup();
            if (rc >= 0 || !Force) return rc;
           } else {

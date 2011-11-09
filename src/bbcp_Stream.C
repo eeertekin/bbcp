@@ -21,9 +21,6 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
-#if defined(SUN) || defined(LINUX)
-#include <stropts.h>
-#endif
 
 #include "bbcp_Debug.h"
 #include "bbcp_Emsg.h"
@@ -195,14 +192,12 @@ int bbcp_Stream::Exec(char **parm, int inrd, int inerr)
 
     // Fork a process first so we can pick up the next request.
     //
-    if ((child = bbcp_OS.Fork()) > 0)
-       {close(Child_Out);
+    if ((child = bbcp_OS.Fork()) != 0)
+       {close(Child_Out); retc = -errno;
         if (inrd)  close(Child_In);
         if (inerr) close(Child_Err);
-        return fildes_Err[0];
-       }
-    if (child < 0) 
-       {retc=bbcp_Emsg("Exec",-errno,"forking request process for",parm[0]);
+        if (child > 0) return fildes_Err[0];
+        retc=bbcp_Emsg("Exec", retc,"forking request process for",parm[0]);
                    close(fildes_In[1]);
         if (inrd)  close(fildes_Out[0]);
         if (inerr) close(fildes_Err[0]);
@@ -222,9 +217,11 @@ int bbcp_Stream::Exec(char **parm, int inrd, int inerr)
 
     // Redirect standard in if so requested
     //
-    if (inrd && dup2(Child_In, STDIN_FILENO) < 0)
-       {bbcp_Emsg("Exec", errno, "setting up standard in for", parm[0]);
-        exit(255);
+    if (inrd)
+       {if (dup2(Child_In, STDIN_FILENO) < 0)
+           {bbcp_Emsg("Exec", errno, "setting up standard in for", parm[0]);
+            exit(255);
+           } else close(Child_In);
        }
 
     // Reassign the stream to be standard out to capture all of the output.
@@ -232,13 +229,15 @@ int bbcp_Stream::Exec(char **parm, int inrd, int inerr)
     if (dup2(Child_Out, STDOUT_FILENO) < 0)
        {bbcp_Emsg("Exec", errno, "setting up standard out for", parm[0]);
         exit(255);
-       }
+       } else close(Child_Out);
 
     // Reassign the stream to be standard err to capture all of the output.
     //
-    if (inerr && Child_Err && dup2(Child_Err, STDERR_FILENO) < 0)
-       {bbcp_Emsg("Exec", errno, "setting up standard err for", parm[0]);
-        exit(255);
+    if (inerr && Child_Err)
+       {if (dup2(Child_Err, STDERR_FILENO) < 0)
+           {bbcp_Emsg("Exec", errno, "setting up standard err for", parm[0]);
+            exit(255);
+           } else close(Child_Err);
        }
 
     // Invoke the command never to return

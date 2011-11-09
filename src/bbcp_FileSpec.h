@@ -27,6 +27,7 @@ char                 *hostname;
 char                 *pathname;
 char                 *filename;
 char                 *filereqn;
+char                 *fileargs;
 char                 *targpath;
 char                 *targetfn;
 long long             targetsz;
@@ -42,13 +43,13 @@ int              Decode(char *buff, char *xName=0);
 
 int              Encode(char *buff, size_t blen);
 
-void             ExtendFileSpec(bbcp_FileSpec* headp);
+void             ExtendFileSpec(bbcp_FileSpec* headp, int &numF);
 
 int              Finalize(int retc=0);
 
 bbcp_FileSystem *FSys() {return FSp;}
 
-void             Parse(char *spec);
+void             Parse(char *spec, int isPipe=0);
 
 int              setMode(mode_t Mode);
 
@@ -62,9 +63,9 @@ int              Xfr_Done();
 
      bbcp_FileSpec(bbcp_FileSystem *fsp=0, char *hname = 0, char *uname=0)
                   : next(0), username(uname), hostname(hname), pathname(0),
-                    filename(0), filereqn(0), targpath(0), targetfn(0),
-                    targetsz(0), targsigf(0), fspec(0), fspec1(0), fspec2(0),
-                    FSp(fsp) {}
+                    filename(0), filereqn(0), fileargs(0),
+                    targpath(0), targetfn(0), targetsz(0), targsigf(0),
+                    fspec(0), fspec1(0), fspec2(0), FSp(fsp) {}
     ~bbcp_FileSpec() {if (fspec)    free(fspec);
                       if (fspec1)   free(fspec1);
                       if (fspec2)   free(fspec2);

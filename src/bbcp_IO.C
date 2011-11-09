@@ -36,7 +36,8 @@ extern bbcp_NetLogger bbcp_NetLog;
   
 int bbcp_IO::Close() 
 {
-   if (iofd > 0) {int oldfd = iofd; iofd = -1; return close(oldfd);}
+   if (iofd > 0)
+      {int oldfd = iofd; iofd = -1; return (close(oldfd) ? -errno : 0);}
    return 0;
 }
  
@@ -79,7 +80,8 @@ void bbcp_IO::Log(const char *rk, const char *wk)
   
 ssize_t bbcp_IO::Read(char *buff, size_t rdsz)
 {
-    ssize_t nbytes=1, rlen = 0;
+   ssize_t nbytes=1, rlen = 0;
+   int rc;
 
 // Read data into the buffer
 //
@@ -87,7 +89,7 @@ ssize_t bbcp_IO::Read(char *buff, size_t rdsz)
    while(1)
         {LOGIT(RKeyA, rdsz);
          if ((nbytes = read(iofd, (void *)buff, rdsz)) < 0)
-            {int rc = errno;
+            {rc = errno;
              LOGIT(RKeyZ, 0);
              if (rc == EINTR) continue;
              break;
@@ -102,14 +104,15 @@ ssize_t bbcp_IO::Read(char *buff, size_t rdsz)
 
 // All done
 //
-   if (rlen >= 0) {xfrbytes += rlen; xfrseek += rlen;}
-      else rlen = -errno;
+   if (rlen > 0) {xfrbytes += rlen; xfrseek += rlen;}
+   if (nbytes < 0) return -rc;
    return rlen;
 }
 
 ssize_t bbcp_IO::Read(const struct iovec *iovp, int iovn)
 {
-    ssize_t nbytes;
+   ssize_t nbytes;
+   int rc;
 
 // If logging, add up the bytes to be read
 //
@@ -127,13 +130,14 @@ ssize_t bbcp_IO::Read(const struct iovec *iovp, int iovn)
    LOGIT(RKeyA, nbytes);
    while((nbytes = readv(iofd, (const struct iovec *)iovp, iovn)) < 0 &&
           errno == EINTR) {}
+   if (nbytes < 0) rc = errno;
    LOGIT(RKeyZ, (nbytes < 0 ? 0 : nbytes));
    xfrtime.Stop();
 
 // All done
 //
    if (nbytes >= 0) {xfrbytes += nbytes; xfrseek += nbytes;}
-      else nbytes = -errno;
+      else return -rc;
    return nbytes;
 }
 
@@ -154,7 +158,8 @@ int bbcp_IO::Seek(long long offv)
   
 ssize_t bbcp_IO::Write(char *buff, size_t wrsz)
 {
-    ssize_t nbytes, wlen = 0;
+   ssize_t nbytes = 0, wlen = 0;
+   int rc;
 
 // Write data from the buffer
 //
@@ -162,7 +167,7 @@ ssize_t bbcp_IO::Write(char *buff, size_t wrsz)
    while(wrsz > 0)
         {LOGIT(WKeyA, wrsz);
          if ((nbytes = write(iofd, (void *)buff, wrsz)) < 0)
-            {int rc = errno;
+            {rc = errno;
              LOGIT(WKeyZ, 0);
              if (rc == EINTR) continue;
              break;
@@ -176,14 +181,15 @@ ssize_t bbcp_IO::Write(char *buff, size_t wrsz)
 
 // All done
 //
-   if (wlen >= 0) {xfrbytes += wlen; xfrseek += wlen;}
-      else wlen = -errno;
+   if (wlen > 0) {xfrbytes += wlen; xfrseek += wlen;}
+   if (nbytes < 0) return -rc;
    return wlen;
 }
   
 ssize_t bbcp_IO::Write(char *buff, size_t wrsz, off_t offs)
 {
-    ssize_t nbytes, wlen = 0;
+   ssize_t nbytes = 0, wlen = 0;
+   int rc;
 
 // Write data from the buffer
 //
@@ -192,7 +198,7 @@ ssize_t bbcp_IO::Write(char *buff, size_t wrsz, off_t offs)
    while(wrsz > 0)
         {LOGIT(WKeyA, wrsz);
          if ((nbytes = pwrite(iofd, (void *)buff, wrsz, offs)) < 0)
-            {int rc = errno;
+            {rc = errno;
              LOGIT(WKeyZ, 0);
              if (rc == EINTR) continue;
              break;
@@ -207,14 +213,15 @@ ssize_t bbcp_IO::Write(char *buff, size_t wrsz, off_t offs)
 
 // All done
 //
-   if (wlen >= 0) {xfrbytes += wlen; xfrseek += wlen;}
-      else wlen = -errno;
+   if (wlen > 0) {xfrbytes += wlen; xfrseek += wlen;}
+   if (nbytes < 0) return -rc;
    return wlen;
 }
 
 ssize_t bbcp_IO::Write(const struct iovec *iovp, int iovn)
 {
-    ssize_t nbytes;
+   ssize_t nbytes;
+   int rc;
 
 // If logging, add up the bytes to be written
 //
@@ -232,12 +239,13 @@ ssize_t bbcp_IO::Write(const struct iovec *iovp, int iovn)
    LOGIT(WKeyA, nbytes);
    while((nbytes = writev(iofd, (const struct iovec *)iovp, iovn)) < 0 &&
           errno == EINTR) {}
+   if (nbytes < 0) rc = errno;
    LOGIT(WKeyZ, (nbytes < 0 ? 0 : nbytes));
    xfrtime.Stop();
 
 // All done
 //
    if (nbytes >= 0) {xfrbytes += nbytes; xfrseek += nbytes;}
-      else nbytes = -errno;
+      else return -rc;
    return nbytes;
 }

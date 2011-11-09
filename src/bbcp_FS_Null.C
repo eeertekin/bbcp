@@ -9,9 +9,7 @@
 /******************************************************************************/
   
 #include <fcntl.h>
-#if !defined(MACOS) && !defined(AIX)
-#include <values.h>
-#endif
+#include <limits.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include "bbcp_File.h"
@@ -71,7 +69,7 @@ long long bbcp_FS_Null::getSize(int fd, long long *bsz)
 /*                                  O p e n                                   */
 /******************************************************************************/
 
-bbcp_File *bbcp_FS_Null::Open(const char *fn, int opts, int mode)
+bbcp_File *bbcp_FS_Null::Open(const char *fn, int opts, int mode, const char *fa)
 {
     bbcp_IO *iob;
     int FD;

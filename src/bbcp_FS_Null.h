@@ -10,6 +10,7 @@
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
   
+#include <errno.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -25,7 +26,7 @@ int        Enough(long long bytes, int numfiles=1) {return 1;}
 
 long long  getSize(int fd, long long *bsz=0);
 
-bbcp_File *Open(const char *fn, int opts, int mode=0);
+bbcp_File *Open(const char *fn, int opts, int mode=0, const char *fa=0);
 
 int        MKDir(const char *path, mode_t mode) {return 0;}
 
@@ -38,6 +39,9 @@ int        setMode(const char *path, mode_t mode) {return 0;}
 int        setTimes(const char *path, time_t atime, time_t mtime) {return 0;}
 
 int        Stat(const char *path, bbcp_FileInfo *finfo=0);
+
+int        Stat(const char *path, const char *dent, int fd,
+                int nolnks=1, bbcp_FileInfo *finfo=0) {return -ENOENT;}
 
            bbcp_FS_Null() {}
           ~bbcp_FS_Null() {}

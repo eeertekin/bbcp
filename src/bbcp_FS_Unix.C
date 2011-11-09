@@ -18,6 +18,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <utime.h>
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #ifndef FREEBSD
@@ -101,6 +102,37 @@ int bbcp_FS_Unix::Enough(long long bytes, int numfiles)
 }
 
 /******************************************************************************/
+/*                                 F s y n c                                  */
+/******************************************************************************/
+  
+int bbcp_FS_Unix::Fsync(const char *fn, int fd)
+{
+   int rc = 0;
+
+// First do an fsync on the file
+//
+   if (fsync(fd)) return -errno;
+
+// If a filename was passed, do an fsync on the directory as well
+//
+   if (fn)
+      {const char *Slash = rindex(fn, '/');
+       char dBuff[MAXPATHLEN+8];
+       if (Slash)
+          {int n = Slash - fn;
+           strncpy(dBuff, fn, n); dBuff[n] = 0;
+           if ((n = open(dBuff, O_RDONLY)) < 0) return -errno;
+           if (fsync(n)) rc = -errno;
+           close(n);
+          }
+      }
+
+// All done
+//
+   return rc;
+}
+
+/******************************************************************************/
 /*                               g e t S i z e                                */
 /******************************************************************************/
   
@@ -132,8 +164,9 @@ int bbcp_FS_Unix::MKDir(const char *path, mode_t mode)
 /*                                  O p e n                                   */
 /******************************************************************************/
 
-bbcp_File *bbcp_FS_Unix::Open(const char *fn, int opts, int mode)
+bbcp_File *bbcp_FS_Unix::Open(const char *fn, int opts, int mode, const char *fa)
 {
+    static const int rwxMask = S_ISUID|S_ISGID|S_ISVTX|S_IRWXU|S_IRWXG|S_IRWXO;
     int FD;
     bbcp_IO *iob;
 
@@ -145,13 +178,14 @@ bbcp_File *bbcp_FS_Unix::Open(const char *fn, int opts, int mode)
 
 // Open the file
 //
+   mode &= rwxMask;
    if ((FD = (mode ? open(fn, opts, mode) : open(fn, opts))) < 0) 
       return (bbcp_File *)0;
 
 // Advise about file access in Linux
 //
 #ifdef LINUX
-   posix_fadvise(FD, 0, 0, POSIX_FADV_SEQUENTIAL | POSIX_FADV_NOREUSE);
+   posix_fadvise(FD,0,0,POSIX_FADV_SEQUENTIAL|POSIX_FADV_NOREUSE);
 #endif
 
 // Do direct I/O for Solaris
@@ -232,6 +266,39 @@ int bbcp_FS_Unix::Stat(const char *path, bbcp_FileInfo *sbuff)
 //
    if (stat(path, &xbuff)) return -errno;
    if (!sbuff) return 0;
+   return Stat(xbuff, sbuff);
+}
+
+/******************************************************************************/
+  
+int bbcp_FS_Unix::Stat(const char *path, const char *dent, int fd,
+                       int nolnks, bbcp_FileInfo *sbuff)
+{
+   struct stat xbuff;
+
+// Perform the stat function
+//
+#ifdef AT_SYMLINK_NOFOLLOW
+   if (fstatat(fd, dent, &xbuff, (nolnks?AT_SYMLINK_NOFOLLOW:0))) return -errno;
+   if (nolnks && (xbuff.st_mode & S_IFMT) == S_IFLNK) return -ENOENT;
+   if (!sbuff) return 0;
+   return Stat(xbuff, sbuff);
+#else
+   if (nolnks)
+      {if (lstat(path, &xbuff)) return -errno;
+       if ((xbuff.st_mode & S_IFMT) == S_IFLNK) return -ENOENT;
+          else return Stat(xbuff, sbuff);
+      }
+   if (!sbuff) return 0;
+   return Stat(path, sbuff);
+#endif
+}
+
+/******************************************************************************/
+  
+int bbcp_FS_Unix::Stat(struct stat &xbuff, bbcp_FileInfo *sbuff)
+{
+   static const int isXeq = S_IXUSR|S_IXGRP|S_IXOTH;
 
 // Copy the stat info into our own structure
 //
@@ -244,10 +311,13 @@ int bbcp_FS_Unix::Stat(const char *path, bbcp_FileInfo *sbuff)
 
 // Get type of object
 //
-// if (S_ISREG(xbuff.st_mode) || S_ISFIFO(xbuff.st_mode)) sbuff->Otype = 'f';
-   if (S_ISREG(xbuff.st_mode)) sbuff->Otype = 'f';
-      else if (S_ISDIR(xbuff.st_mode)) sbuff->Otype = 'd';
-              else sbuff->Otype = '?';
+//
+        if (S_ISREG( xbuff.st_mode)){sbuff->Otype = 'f';
+        if (isXeq &  xbuff.st_mode)  sbuff->Xtype = 'x';
+                                    }
+   else if (S_ISFIFO(xbuff.st_mode)) sbuff->Otype = 'p';
+   else if (S_ISDIR( xbuff.st_mode)) sbuff->Otype = 'd';
+   else                              sbuff->Otype = '?';
 
 // Convert gid to a group name
 //

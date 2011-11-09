@@ -26,10 +26,6 @@ class bbcp_File
 {
 public:
 
-// Close the file
-//
-int          Close();
-
 // Return target file system
 //
 bbcp_FileSystem *Fsys() {return FSp;}
@@ -103,6 +99,7 @@ char            *iofn;
 
 bbcp_Buffer *getBuffer(long long offset);
 int          Read_Direct (bbcp_BuffPool *inB, bbcp_BuffPool *otP);
+int          Read_Pipe   (bbcp_BuffPool *inB, bbcp_BuffPool *otP);
 int          Read_Normal (bbcp_BuffPool *inB, bbcp_BuffPool *otP);
 int          Read_Vector (bbcp_BuffPool *inB, bbcp_BuffPool *otP, int vN);
 int          verChkSum(bbcp_FileChkSum *csP);

@@ -50,8 +50,12 @@ elif FileThere x $UNAMF; then
 #
     if FileThere x $AFSFS; then
        SYSNAME=`$AFSFS sysname | /usr/bin/awk -F\' '{print $2}'`
-       if [ $SYSNAME = i386_rhel40 -a "x$MTNAME" = "xx86_64" ]; then
-          SYSNAME=amd64_linux26
+       if [ $SYSNAME = i386_rhel40 ]; then
+          if [ "x$MTNAME" = "xx86_64" ]; then
+             SYSNAME=amd64_linux26
+             else
+             SYSNAME=i386_linux26
+          fi
        fi
   elif [ $OSNAME = SunOS ]; then
        if [ $MTNAME = i86pc ]; then

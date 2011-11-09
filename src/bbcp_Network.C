@@ -507,7 +507,7 @@ char *bbcp_Network::getHostName(struct sockaddr_in &addr)
 // Convert it to a host name
 //
    if (GETHOSTBYADDR((const char *)&addr.sin_addr, sizeof(addr.sin_addr),
-                     AF_INET, &hent, hbuff, sizeof(hbuff), hp, &rc))
+                     AF_INET, &hent, hbuff, sizeof(hbuff), hp, &rc) && hp)
              hname = strdup(hp->h_name);
         else hname = strdup(inet_ntoa(addr.sin_addr));
 

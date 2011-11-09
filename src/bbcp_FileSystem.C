@@ -10,6 +10,7 @@
   
 #include "bbcp_Headers.h"
 #include "bbcp_FS_Null.h"
+#include "bbcp_FS_Pipe.h"
 #include "bbcp_FS_Unix.h"
 
 // This file holds the function that returns an applicable filesystem object
@@ -18,23 +19,20 @@
 // the first one that claims to be applicable to the given path.
 
 /******************************************************************************/
-/*                        G l o b a l   O b j e c t s                         */
-/******************************************************************************/
-
-bbcp_FS_Null bbcp_NULL;
-  
-bbcp_FS_Unix bbcp_UFS;
-
-/******************************************************************************/
 /*                    b b c p _ g e t F i l e S y s t e m                     */
 /******************************************************************************/
   
-bbcp_FileSystem *bbcp_getFileSystem(const char *path)
+bbcp_FileSystem *bbcp_FileSystem::getFS(const char *path, int Opts)
 {
+
+   static bbcp_FS_Null bbcp_NULL;
+   static bbcp_FS_Pipe bbcp_PIPE;
+   static bbcp_FS_Unix bbcp_UFS;
 
 // Simply try each supported filesystem (add more as they are defined)
 //
    if (bbcp_NULL.Applicable(path))  return (bbcp_FileSystem *)&bbcp_NULL;
+   if (Opts & getFS_Pipe)           return (bbcp_FileSystem *)&bbcp_PIPE;
    if (bbcp_UFS.Applicable(path))   return (bbcp_FileSystem *)&bbcp_UFS;
 
 // All done, nothing is applicable

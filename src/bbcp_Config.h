@@ -15,6 +15,8 @@
 #include "bbcp_LogFile.h"
 #include "bbcp_Stream.h"
 
+class bbcp_Args;
+
 class bbcp_Config
 {
 public:
@@ -58,6 +60,7 @@ char         *IDfn;
 char         *Logfn;
 char         *LogSpec;
 char         *RepSpec;
+char         *SynSpec;
 bbcp_LogFile *MLog;
 char         *CopyOpts;
 int           CopyOptt;
@@ -96,6 +99,7 @@ char          csValue[16];
 char          csString[44];
 
 char          ubSpec[4];
+char          upSpec[4];
 
 bbcp_FileSpec  *srcPath;
 bbcp_FileSpec  *srcSpec;
@@ -140,8 +144,10 @@ void  ParseSB(char *spec);
 int   ROpts(char *Opts);
 int   ROptsErr(char *Opts);
 char *Rtoken(void);
+void  setOpts(bbcp_Args &Args);
 char *tohex(char *inbuff, int inlen, char *outbuff);
 int   Unbuff(char *Opts);
+int   Unpipe(char *Opts);
 };
 
 /******************************************************************************/
@@ -196,6 +202,15 @@ int   Unbuff(char *Opts);
 
 #define bbcp_RTCVERC  0x0000001000000000LL
 #define bbcp_OMIT     0x0000002000000000LL
+#define bbcp_IPIPE    0x0000004000000000LL
+#define bbcp_OPIPE    0x0000008000000000LL
+
+#define bbcp_XPIPE    0x000000c000000000LL
+
+#define bbcp_NOFSZCHK 0x0000010000000000LL
+
+#define bbcp_FSYNC    0x0000020000000000LL
+#define bbcp_DSYNC    0x0000060000000000LL
 
 #define BBCP_MAXSTREAMS 64
 #define BBCP_MINPMONSEC  1
