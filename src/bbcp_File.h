@@ -14,6 +14,7 @@
 #include "bbcp_BuffPool.h"
 #include "bbcp_IO.h"
 #include "bbcp_Pthread.h"
+#include "bbcp_Timer.h"
 
 // The bbcp_File class describes the set of operations that are needed to copy
 // a "file". The actual I/O are determined by the associated filesystem and
@@ -77,8 +78,8 @@ long long    Stats()               {return IOB->ioStats();}
              bbcp_File(const char *path, bbcp_IO *iox,
                        bbcp_FileSystem *fsp, int secSize=0);
 
-            ~bbcp_File() {if (iofn) free(iofn);
-                          if (IOB)  delete IOB;
+            ~bbcp_File() {if (iofn) {free(iofn); iofn = 0;}
+                          if (IOB)  {delete IOB; IOB  = 0;}
                          }
 
 int          bufreorders;
@@ -91,6 +92,8 @@ long long        nextoffset;
 long long        lastoff;
 long long        bytesLeft;
 long long        blockSize;
+long long        PaceTime;
+bbcp_Timer       Ticker;
 int              rtCopy;
 int              curq;
 bbcp_IO         *IOB;
@@ -102,6 +105,8 @@ int          Read_Direct (bbcp_BuffPool *inB, bbcp_BuffPool *otP);
 int          Read_Pipe   (bbcp_BuffPool *inB, bbcp_BuffPool *otP);
 int          Read_Normal (bbcp_BuffPool *inB, bbcp_BuffPool *otP);
 int          Read_Vector (bbcp_BuffPool *inB, bbcp_BuffPool *otP, int vN);
+void         Read_Wait   (int rdsz);
+void         Read_Wait   ();
 int          verChkSum(bbcp_FileChkSum *csP);
 int          Write_Direct(bbcp_BuffPool *iBP, bbcp_BuffPool *oBP, int nstrms);
 int          Write_Normal(bbcp_BuffPool *iBP, bbcp_BuffPool *oBP, int nstrms);

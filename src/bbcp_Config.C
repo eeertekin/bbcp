@@ -238,7 +238,7 @@ void bbcp_Config::Arguments(int argc, char **argv, int cfgfd)
                  if (CKPdir) {free(CKPdir); CKPdir = 0;}
                  if (arglist.argval) CKPdir = strdup(arglist.argval);
                  break;
-       case 'B': if (a2sz("window size", arglist.argval,
+       case 'B': if (a2sz("block size", arglist.argval,
                          rwbsz, 1024, ((int)1)<<30))
                     Cleanup(1, argv[0], cfgfd);
                  break;

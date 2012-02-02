@@ -120,6 +120,7 @@ bbcp_File::bbcp_File(const char *path, bbcp_IO *iox,
    FSp         = fsp;
    bufreorders = 0;
    maxreorders = 0;
+   PaceTime    = 0;
    rtCopy      = (bbcp_Config.Options & bbcp_RTCSRC ? 1 : 0);
 }
 
@@ -363,6 +364,10 @@ int bbcp_File::Read_Direct(bbcp_BuffPool *iBP, bbcp_BuffPool *oBP)
     ssize_t rlen;
     int Trunc = 0, rdsz = iBP->DataSize();
 
+// Initialize transfer rate limiting if so desired
+//
+   if (bbcp_Config.Xrate) Read_Wait(rdsz);
+
 // Simply read one buffer at a time, that's the fastest way to do this
 //
 // cerr <<"DIRECT READ SIZE=" <<rdsz <<endl;
@@ -392,6 +397,10 @@ int bbcp_File::Read_Direct(bbcp_BuffPool *iBP, bbcp_BuffPool *oBP)
          bP->boff   = nextoffset; nextoffset += rlen;
          bP->blen   = rlen;
          oBP->putFullBuff(bP);
+
+      // Limit Transfer rate if need be
+      //
+         if (PaceTime && bytesLeft > 0) Read_Wait();
       }
   
 // All done
@@ -409,6 +418,10 @@ int bbcp_File::Read_Normal(bbcp_BuffPool *iBP, bbcp_BuffPool *oBP)
     bbcp_Buffer  *bP;
     ssize_t rlen;
     int rdsz = iBP->DataSize();
+
+// Initialize transfer rate limiting if so desired
+//
+   if (bbcp_Config.Xrate) Read_Wait(rdsz);
 
 // Simply read one buffer at a time, that's the fastest way to do this
 //
@@ -434,6 +447,11 @@ int bbcp_File::Read_Normal(bbcp_BuffPool *iBP, bbcp_BuffPool *oBP)
          bP->boff   =  nextoffset; nextoffset += rlen;
          bP->blen   = rlen;
          oBP->putFullBuff(bP);
+
+      // Limit Transfer rate if need be
+      //
+         if (PaceTime && rlen == rdsz && bytesLeft > 0) Read_Wait();
+
       } while(rlen == rdsz && bytesLeft > 0);
 
 // All done
@@ -451,6 +469,10 @@ int bbcp_File::Read_Pipe(bbcp_BuffPool *iBP, bbcp_BuffPool *oBP)
     bbcp_Buffer  *bP;
     ssize_t rlen;
     int rdsz = iBP->DataSize();
+
+// Initialize transfer rate limiting if so desired
+//
+   if (bbcp_Config.Xrate) Read_Wait(rdsz);
 
 // Simply read one buffer at a time, that's the fastest way to do this
 //
@@ -470,6 +492,10 @@ int bbcp_File::Read_Pipe(bbcp_BuffPool *iBP, bbcp_BuffPool *oBP)
          bP->boff   =  nextoffset; nextoffset += rlen;
          bP->blen   = rlen;
          oBP->putFullBuff(bP);
+
+      // Limit Transfer rate if need be
+      //
+         if (PaceTime && rlen == rdsz) Read_Wait();
       } while(rlen == rdsz);
 
 // All done
@@ -488,6 +514,10 @@ int bbcp_File::Read_Vector(bbcp_BuffPool *iBP, bbcp_BuffPool *oBP, int vNum)
     ssize_t blen, rlen;
     int rdsz = iBP->DataSize(), numV = (vNum > IOV_MAX ? IOV_MAX : vNum);
     int i, ivN, eof = 0;
+
+// Initialize transfer rate limiting if so desired
+//
+   if (bbcp_Config.Xrate) Read_Wait(rdsz*numV);
 
 // Simply read one buffer at a time, that's the fastest way to do this
 //
@@ -523,12 +553,50 @@ int bbcp_File::Read_Vector(bbcp_BuffPool *iBP, bbcp_BuffPool *oBP, int vNum)
       //
          eof = i < ivN || bytesLeft <= 0;
          while(i < ivN) iBP->putEmptyBuff(ioBuff[i++]);
+
+      // Limit Transfer rate if need be
+      //
+         if (PaceTime && !eof) Read_Wait();
       }
 
 // All done
 //
    if (!eof) return (rlen ? static_cast<int>(rlen) : -ENODATA);
    return 0;
+}
+
+/******************************************************************************/
+/*                             R e a d _ W a i t                              */
+/******************************************************************************/
+  
+void bbcp_File::Read_Wait(int rdsz)
+{
+   static const double usPerSec = 1000000.0;
+   double nBlk;
+
+// Calculate number of micro seconds each read should take to achive the
+// desired transfer rate. This may cause us to not limit the transfer at all.
+//
+   nBlk = static_cast<double>(bbcp_Config.Xrate)
+        / static_cast<double>(rdsz);
+   PaceTime = static_cast<long long>(usPerSec / nBlk);
+   DEBUG("Pacing " <<rdsz <<" * " <<nBlk <<" @ " <<PaceTime <<"us = "
+         <<bbcp_Config.Xrate <<"/sec");
+   Ticker.Reset();
+}
+
+/******************************************************************************/
+
+void bbcp_File::Read_Wait()
+{
+   long long Etime;
+
+// Calculate how time was spent reading the data. Wait if the read was faster
+// than we need it to be to achieve the maximum transfer rate.
+//
+   Ticker.Stop(); Ticker.Report(Etime);
+   if (Etime < PaceTime) Ticker.Wait((long long)((PaceTime - Etime)));
+   Ticker.Reset();
 }
 
 /******************************************************************************/

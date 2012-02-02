@@ -579,15 +579,12 @@ int bbcp_Node::SendFile(bbcp_FileSpec *fp)
        delete cxp;
       }
 
-// Make sure each link thread has terminated normally. We wait for each thread
-// doing actual I/O as we will simply cancel the clocker thread it it exists.
+// Make sure each link thread has terminated normally.
 //
-   if (bbcp_Config.Xrate) bbcp_Thread_Detach(link_tid[iocount]);
    for (i = 0; i < iocount; i++)
        {if (tretc = (long)bbcp_Thread_Wait(link_tid[i])) retc = 128;
         DEBUG("Thread " <<link_tid[i] <<" stream " <<i <<" ended; rc=" <<tretc);
        }
-   if (bbcp_Config.Xrate) bbcp_Thread_Cancel(link_tid[iocount]);
 
 // All done
 //
@@ -668,14 +665,6 @@ int bbcp_Node::Incomming(bbcp_Protocol *protocol)
    if (dlcount < bbcp_Config.Streams) return Recover("Accept");
    iocount = dlcount;
 
-// If we are clocking out data, insert a special clocking link
-//
-   if (bbcp_Config.Xrate && (bbcp_Config.Options & bbcp_SRC))
-      {link = new bbcp_Link();
-       link->LinkNum = -1;
-       data_link[dlcount++] = link;
-      }
-
 // Initialize the buddy pipeline; a patented way of ensuring maximum parallelism
 //
    if (dlcount > 1 && (bbcp_Config.Options & (bbcp_SRC|bbcp_ORDER)))
@@ -737,14 +726,6 @@ int bbcp_Node::Outgoing(bbcp_Protocol *protocol)
 // Determine what the actual window size is (only if verbose)
 //
    if (bbcp_Config.Options & bbcp_BLAB) chkWsz(data_link[0]->FD());
-
-// If we are clocking out data, insert a special clocking link
-//
-   if (bbcp_Config.Xrate && (bbcp_Config.Options & bbcp_SRC))
-      {link = new bbcp_Link();
-       link->LinkNum = -1;
-       data_link[dlcount++] = link;
-      }
 
 // Initialize the buddy pipeline; a patented way of ensuring maximum parallelism
 //

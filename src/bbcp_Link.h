@@ -55,7 +55,6 @@ bbcp_IO         IOB;
 bbcp_ChkSum    *csObj;
 char           *Lname;
 
-int        ClockData();
 int        Control_In( bbcp_Buffer *inbuff);
 int        Control_Out(bbcp_Buffer *outbuff);
 };

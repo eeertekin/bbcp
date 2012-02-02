@@ -32,41 +32,6 @@ int bbcp_Timer::Format(char *tbuff)
 }
 
 /******************************************************************************/
-/*                                R e p o r t                                 */
-/******************************************************************************/
-
-void bbcp_Timer::Report(double &total_time)
-{
-
-// Return the time as a double adjusted to milliseconds
-//
-    total_time  = (double) TotalTime.tv_sec +
-                 ((double)(TotalTime.tv_usec/1000))/1000.0;
-}
-
-/******************************************************************************/
-
-void bbcp_Timer::Report(long long &total_time)
-{
-
-// Return the time as a long long to the nearest microsecond
-//
-    total_time  = (long long) TotalTime.tv_sec*1000000 +
-                  (long long) TotalTime.tv_usec;
-}
-
-/******************************************************************************/
-
-void bbcp_Timer::Report(unsigned int  &total_time)
-{
-
-// Add up the time as a 32-bit value to nearest millisecond (max = 24 days)
-//
-    total_time  = (unsigned int ) TotalTime.tv_sec*1000 +
-                  (unsigned int )(TotalTime.tv_usec/1000);
-}
-
-/******************************************************************************/
 /*                                  S t o p                                   */
 /******************************************************************************/
 
@@ -77,11 +42,18 @@ void bbcp_Timer::Stop()
 // Get current time of day and compute running total
 //
    gettimeofday(&tod, 0);
+   TotalTime += (static_cast<long long>(tod.tv_sec) -
+                 static_cast<long long>(StopWatch.tv_sec)) * 1000000LL
+              + (static_cast<long long>(tod.tv_usec) -
+                 static_cast<long long>(StopWatch.tv_usec));
+/*
    TotalTime.tv_sec  += tod.tv_sec - StopWatch.tv_sec;
    TotalTime.tv_usec += tod.tv_usec- StopWatch.tv_usec;
    if (TotalTime.tv_usec > 1000000) {TotalTime.tv_sec++;
                                       TotalTime.tv_usec -= 1000000;
                                      }
+*/
+
 // Reset the stop watch so that we have a consistent timer
 //
    StopWatch.tv_sec  = tod.tv_sec;
@@ -105,6 +77,25 @@ void bbcp_Timer::Wait(int mills)
 //
 
    while(nanosleep(&naptime, &pantime) && EINTR == errno)
+        {naptime.tv_sec  = pantime.tv_sec;
+         naptime.tv_nsec = pantime.tv_nsec;
+        }
+}
+
+/******************************************************************************/
+
+void bbcp_Timer::Wait(long long mics)
+{
+   struct timespec naptime, pantime;
+
+// Compute amount to wait
+//
+   naptime.tv_sec  =  mics/1000000;
+   naptime.tv_nsec = (mics%1000000)*1000;
+
+// Wait for at least the specified number of microseconds
+//
+   while(nanosleep(&naptime,&pantime) && EINTR == errno)
         {naptime.tv_sec  = pantime.tv_sec;
          naptime.tv_nsec = pantime.tv_nsec;
         }

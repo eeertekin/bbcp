@@ -68,17 +68,19 @@ void bbcp_ProgMon::Monitor()
 
        curbytes = FSp->Stats();
        if (Tbytes) sprintf(pbuff,"%d%%",static_cast<int>(curbytes*100/Tbytes));
-       xfrtime = curbytes/(((double)elptime)/1000.0);
+       xfrtime =  static_cast<double>(curbytes)
+               / (static_cast<double>(elptime) / 1000.0);
 
        if (CXp)
           {if (!(cxbytes = CXp->Bytes())) cratio = 0.0;
-              else cratio = ((float)(curbytes*10/cxbytes))/10.0;
+              else cratio = static_cast<float>(curbytes*10/cxbytes) / 10.0;
            sprintf(cxinfo, " compressed %.1f", cratio);
           }
 
        if (bewordy)
           {intvtime = elptime - lasttime;
-           xfrtnow = (curbytes-lastbytes)/(((double)intvtime)/1000.0);
+           xfrtnow =  static_cast<double>(curbytes-lastbytes)
+                   / (static_cast<double>(intvtime) / 1000.0);
            xaXB = bbcp_Config::Scale(xfrtnow);
           }
        lastbytes = curbytes;

@@ -14,15 +14,15 @@ ENVINCLUDE = -I. -I/usr/local/include -I/usr/include
 
 AIXLIBS    =  -q64 -L/usr/lib -lz -lpthreads
 
-BSDLIBS    =  /usr/lib/libz.a -pthread
+BSDLIBS    =  -L/usr/lib -lz -pthread
 
 LNXLIBS32  =  -lnsl -lpthread -lrt -lz
 LNXLIBS64  =  -lnsl -lpthread -lrt -lz
 
 MACLIBS    =  -dynamic -L/usr/lib -lz                       -lpthread
 
-SUNLIBS    =  /usr/local/lib/libz.a -lposix4 -lsocket -lnsl -lpthread
-SUNLIBSO   =  -L/usr/lib -lz -lposix4 -lsocket -lnsl -lpthread
+SUNLIBSA   =  /usr/local/lib/libz.a -lposix4 -lsocket -lnsl -lpthread
+SUNLIBS    =  -L/usr/lib -lz -lposix4 -lsocket -lnsl -lpthread
 
 MKPARMS  = doitall
 
@@ -30,8 +30,7 @@ NLGR       = -DNL_THREADSAFE
 
 SUN64      = -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64
 SUNMT      = -D_REENTRANT -DOO_STD -mt
-SUNOPT     = -O2 -fsimple -fast
-SUNOPT     = -g  -fsimple $(SUNMT) $(SUN64) $(NLGR) -DSUN
+SUNOPT     = -g -fast $(SUNMT) $(SUN64) $(NLGR) -DSUN
 
 SUNCC      = CC
 SUNcc      = cc
@@ -235,7 +234,7 @@ SunX86:
 	BB=$(S86cc) \
 	CFLAGS="$(ENVCFLAGS) $(S86OPT) $(OPT)" \
 	INCLUDE="$(ENVINCLUDE)" \
-	LIBS="$(SUNLIBSO)"
+	LIBS="$(SUNLIBS)"
 
 Sungcc:
 	@make $(MKPARMS)  \
@@ -243,7 +242,7 @@ Sungcc:
 	BB=$(SUNGcc) \
 	CFLAGS="$(ENVCFLAGS) $(SUNGCCOPT) $(OPT)" \
 	INCLUDE="$(ENVINCLUDE)" \
-	LIBS="$(SUNLIBSO)" \
+	LIBS="$(SUNLIBS)" \
 	OSVER=`../MakeSname`
 
 $(TARGET): $(OBJECT)

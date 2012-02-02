@@ -493,7 +493,7 @@ int bbcp_FileSpec::Xfr_Done()
 //
 //cerr <<"tsz=" <<targetsz <<" isz=" <<Info.size <<" sigf=" <<targsigf <<endl;
    if (bbcp_Config.Options & bbcp_APPEND)
-      {if (stat(targsigf, &sbuff))
+      {if (!stat(targsigf, &sbuff))
           {rc = Xfr_Fixup();
            if (rc >= 0 || !Force) return rc;
           } else {
@@ -617,5 +617,10 @@ int bbcp_FileSpec::Xfr_Fixup()
                  "copy appears to have completed; finalizing copy now.");
        return (Finalize(0) ? -1 : 1);
       }
+
+// Inform the person we will try to complete the copy
+//
+   if (bbcp_Config.Options & bbcp_VERBOSE)
+      bbcp_Fmsg("Xfr_Fixup", "Will try to complete copying",targpath);
    return 0;
 }

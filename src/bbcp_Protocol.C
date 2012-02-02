@@ -250,9 +250,18 @@ int bbcp_Protocol::Process(bbcp_Node *Node)
       }
 
 // Make sure all of the source files exist at this location. If there is an
-// error, defer exiting until after connecting to prevent a hang-up.
+// error, defer exiting until after connecting to prevent a hang-up. We
+// make sure that we are not trying to copy a directory.
 //
-   while(fp) {NoGo |= fp->Stat(); fp = fp->next;}
+   while(fp)
+        {NoGo |= fp->Stat();
+         if (fp->Info.Otype == 'd' && !(bbcp_Config.Options & bbcp_RECURSE))
+            {bbcp_Fmsg("Source", fp->pathname, "is a directory.");
+             NoGo = 1; break;
+            }
+
+         fp = fp->next;
+        }
 
 // If this is a recursive list, do it in the bacground while we try to connect.
 // This avoids time-outs when large number of files are enumerated.
@@ -354,8 +363,10 @@ int bbcp_Protocol::Process_flist()
 // Simply go through the list of files and report them back to the caller
 
    while(fp) 
-      {if ((blen = fp->Encode(buff,(size_t)sizeof(buff))) < 0) return -1;
-       if (Remote->Put(buff, blen)) return -1;
+      {if (fp->Info.Otype != 'd' || *(fp->filename))
+          {if ((blen = fp->Encode(buff,(size_t)sizeof(buff))) < 0) return -1;
+           if (Remote->Put(buff, blen)) return -1;
+          }
        fp = fp->next;
       }
 

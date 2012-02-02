@@ -65,10 +65,6 @@ int bbcp_Link::Buff2Net()
     int retc = 0, NotDone = 1, csLen = (csObj ? csObj->csSize() : 0);
     struct iovec iov[2] = {0, hdrsz, 0, 0};
 
-// Check if this is a clocking link
-//
-   if (LinkNum < 0) return ClockData();
-
 // Establish logging options
 //
    if (bbcp_Config.Options & bbcp_LOGOUT) IOB.Log(0, "NET");
@@ -98,7 +94,6 @@ int bbcp_Link::Buff2Net()
          iov[0].iov_base = (char *)&outbuff->bHdr;
          iov[1].iov_base =  outbuff->data; iov[1].iov_len = outbuff->blen;
          wrsz = (ssize_t)outbuff->blen + hdrsz;
-//{char xbuff[80]; sprintf(xbuff, "S %lld\n",outbuff->boff); cerr <<xbuff;}
          if ((wlen = IOB.Write(iov, 2)) != wrsz) break;
 
       // Queue buffer for re-use
@@ -149,10 +144,6 @@ int bbcp_Link::Net2Buff()
     ssize_t hdrsz = (ssize_t)sizeof(bbcp_Header);
     int  maxrdsz  = bbcp_BPool.DataSize();
     int i, notdone = 1, csLen = (csObj ? csObj->csSize() : 0);
-
-// Check if this is a clocking link
-//
-   if (LinkNum < 0) return ClockData();
 
 // Establish logging options
 //
@@ -224,54 +215,6 @@ int bbcp_Link::Net2Buff()
 /******************************************************************************/
 /*                       P r i v a t e   M e t h o d s                        */
 /******************************************************************************/
-/******************************************************************************/
-/*                             C l o c k D a t a                              */
-/******************************************************************************/
-
-#define absVal(x) (x < 0 ? -x : x)
-
-int bbcp_Link::ClockData()
-{
-   bbcp_Timer Ticker;
-   int  TotBytes;
-   unsigned int  Window, Etime;
-     signed int  Old_Etime = 0, Diff, Old_Dev = 0;
-   int Settle_tics = 100;
-
-// Calculate number of bytes being sent per clock period
-//
-   TotBytes = bbcp_Config.Streams * bbcp_Config.Wsize;
-
-// Calculate clock window in milliseconds for each data spurt
-//
-   Window = (unsigned int )((double)TotBytes/(double)bbcp_Config.Xrate*1000.0);
-   DEBUG("Clock Window=" <<Window <<" TotBytes=" <<TotBytes);
-
-// The clocking loop is relatively straightforward. Unlike fixed clocking
-// pulses, we adjust the clocking rate to achieve no more than the desired
-// performance for each spurt. If we were interested in average performance,
-// we would simply clock the data out at a fixed rate.
-//
-   while(1)
-        {Ticker.Reset();
-         Rendezvous.Wait();
-         Ticker.Stop();
-         Ticker.Report(Etime);
-         if (Settle_tics) Settle_tics--;
-//          else {Diff = (signed int )Etime - (signed int )Old_Etime;
-//                Old_Dev = Old_Dev + (absVal(Diff)-Old_Dev)>>2;
-//                bbcp_Config.Jitter = Old_Dev;
-//               }
-         Old_Etime = Etime;
-         if (Etime < Window) Ticker.Wait(Window-Etime);
-         if (Buddy) Buddy->Rendezvous.Post();
-        }
-
-// All done
-//
-   return 0;
-}
-  
 /******************************************************************************/
 /*                            C o n t r o l _ I n                             */
 /******************************************************************************/
