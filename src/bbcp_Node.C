@@ -776,7 +776,7 @@ int n;
 
 // Print the summary
 //
-   xrate = ((double)xbytes)/ttime; xType = bbcp_Config::Scale(xrate);
+   xrate = ((double)xbytes)/ttime*1000.0; xType = bbcp_Config::Scale(xrate);
    n = sprintf(Line, "File %s created; %lld bytes at %.1f %sB/s%s\n",
                fp->targpath, xbytes, xrate, xType, buff);
    write(STDERR_FILENO, Line, n);

@@ -154,7 +154,7 @@ main(int argc, char *argv[], char *envp[])
        char buff[128];
        Elapsed_Timer.Stop();
        Elapsed_Timer.Report(ttime);
-       xRate = ((double)TotBytes)/ttime; xType = bbcp_Config::Scale(xRate);
+       xRate = ((double)TotBytes)/ttime*1000.0; xType = bbcp_Config::Scale(xRate);
        sprintf(buff, "%.1f %sB/s", xRate, xType);
        cerr <<TotFiles <<(TotFiles != 1 ? " files" : " file");
        cerr <<" copied at effectively " <<buff <<endl;
