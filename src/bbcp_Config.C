@@ -858,6 +858,7 @@ void bbcp_Config::Config_Ctl(int rwbsz)
    if (Options & bbcp_FORCE)     Add_Opt('f');
    if (Options & bbcp_NOSPCHK)   Add_Opt('F');
    if (Options & bbcp_KEEP)      Add_Opt('k');
+   if (Options & bbcp_NOUNLINK)  Add_Opt('K');
    if (LogSpec)                 {Add_Opt('L'); Add_Str(LogSpec);}
    if (!(Options & bbcp_XPIPE)) {Add_Opt('m');
    if (ModeD)                   {              Add_Oct(ModeD); *cbp++ ='/';
