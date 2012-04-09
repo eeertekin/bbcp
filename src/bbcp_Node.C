@@ -295,7 +295,7 @@ int bbcp_Node::RecvFile(bbcp_FileSpec *fp)
            {oflag = O_WRONLY;
             Path = bbcp_Config.snkSpec->pathname;
             Args = bbcp_Config.snkSpec->fileargs;
-            if (fp->Info.Otype != 'p') Act = "running";
+            if (bbcp_Config.snkSpec->Info.Otype != 'p') Act = "running";
                else {Mode |= S_IFIFO;
                      if (Args)
                         {bbcp_Fmsg("RecvFile",
