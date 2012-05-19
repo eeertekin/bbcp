@@ -402,7 +402,7 @@ int bbcp_Protocol::Process_get()
 
 // Locate the file
 //
-   while(fp && (fp->seqno != fnum || strcmp(wp, fp->filename))) 
+   while(fp && (fp->seqno != fnum || strcmp(wp, fp->filereqn)))
         {pp = fp; fp=fp->next;}
    if (!fp)
       {char buff[64];
@@ -731,7 +731,7 @@ int bbcp_Protocol::Request_get(bbcp_FileSpec *fp)
 // Construct the get command
 //
    blen = snprintf(buff, sizeof(buff)-1, "get 0 %d %s %lld\n",
-                   fp->seqno, fp->filename, fp->targetsz);
+                   fp->seqno, fp->filereqn, fp->targetsz);
 
 // Send off the command
 //

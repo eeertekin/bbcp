@@ -32,7 +32,7 @@ bbcp_Version::bbcp_Version()
 {
 Copyright = "(c) 2012 by the Board of Trustees of the Leland Stanford, Jr., University";
 Author    = "Andrew Hanushevsky";
-Version   = "Version: 12.01.30.00.0";
+Version   = "Version: 12.01.30.01.0";
 //           0123456789
 VData     = Version+9;
 };
