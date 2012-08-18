@@ -99,6 +99,7 @@ bbcp_Config::bbcp_Config()
    CBport    = 0;
    CopyOpts  = 0;
    LogSpec   = 0;
+   PorSpec   = 0;
    RepSpec   = 0;
    bindtries = 1;
    bindwait  = 0;
@@ -178,6 +179,7 @@ bbcp_Config::~bbcp_Config()
    if (Logurl)   free(Logurl);
    if (Logfn)    free(Logfn);
    if (LogSpec)  free(LogSpec);
+   if (PorSpec)  free(PorSpec);
    if (CBhost)   free(CBhost);
    if (CopyOpts) free(CopyOpts);
    if (SecToken) free(SecToken);
@@ -200,7 +202,7 @@ bbcp_Config::~bbcp_Config()
 #define Cat_Oct(x) {            cbp=n2a(x,&cbp[0],"%o");}
 #define Add_Str(x) {cbp[0]=' '; strcpy(&cbp[1], x); cbp+=strlen(x)+1;}
 
-#define bbcp_VALIDOPTS (char *)"-a.B:b:C:c.d:DeE:fFhi:I:kKl:L:m:nN:oOpP:q:rR.s:S:t:T:u:U:vVw:W:x:y:z"
+#define bbcp_VALIDOPTS (char *)"-a.B:b:C:c.d:DeE:fFhi:I:kKl:L:m:nN:oOpP:q:rR.s:S:t:T:u:U:vVw:W:x:y:zZ:"
 #define bbcp_SSOPTIONS bbcp_VALIDOPTS "MH:Y:"
 
 #define Hmsg1(a)   {bbcp_Fmsg("Config", a);    help(1);}
@@ -375,6 +377,8 @@ void bbcp_Config::Arguments(int argc, char **argv, int cfgfd)
                  SynSpec = strdup(arglist.argval);
                  break;
        case 'z': Options |= bbcp_CON2SRC;
+                 break;
+       case 'Z': if (!setPorts(arglist.argval)) Cleanup(1, argv[0], cfgfd);
                  break;
        case '-': break;
        default:  if (!notctl)
@@ -592,7 +596,8 @@ I("Options: [-a [dir]] [-b [+]bf] [-B bsz] [-c [lvl]] [-C cfn] [-D] [-d path]")
 H("         [-e] [-E csa] [-f] [-F] [-h] [-i idfn] [-I slfn] [-k] [-K]")
 H("         [-L opts[@logurl]] [-l logf] [-m mode] [-n] [-N nio] [-o] [-O] [-p]")
 H("         [-P sec] [-r] [-R [args]] [-q qos] [-s snum] [-S srcxeq] [-T trgxeq]")
-H("         [-t sec] [-v] [-V] [-u loc] [-U wsz] [-w [=]wsz] [-x rate] [-y] [-z] [--]")
+H("         [-t sec] [-v] [-V] [-u loc] [-U wsz] [-w [=]wsz] [-x rate] [-y] [-z]")
+H("         [-Z pnf[:pnl]] [--]")
 I("I/Ospec: [user@][host:]file")
 if (rc) exit(rc);
 I("Function: Secure and fast copy utility.")
@@ -644,6 +649,7 @@ H("-x rate is the maximum transfer rate allowed in bytes, K, M, or G.")
 H("-y what perform fsync before closing the output file when what is 'd'.")
 H("        When what is 'dd' then the file and directory are fsynced.")
 H("-z      use reverse connection protocol (i.e., target to source).")
+H("-Z      use port range pn1:pn2 for accepting data transfer connections.")
 H("--      allows an option with a defaulted optional arg to appear last.")
 I("user    the user under which the copy is to be performed. The default is")
 H("        to use the current login name.")
@@ -897,6 +903,7 @@ void bbcp_Config::Config_Ctl(int rwbsz)
    if (csSpec)                  {Add_Opt('E'); Add_Str(csSpec);}
    if (Options & (bbcp_IDIO | bbcp_ODIO))
                                 {Add_Opt('u'); Add_Str(ubSpec);}
+   if (PorSpec)                 {Add_Opt('Z'); Add_Str(PorSpec);}
    CopyOpts = strdup(cbuff);
 }
   
@@ -1388,8 +1395,55 @@ void bbcp_Config::setOpts(bbcp_Args &Args)
 // Y
      Args.Option("sync",       4, 'y', 0);
      Args.Option("reverse",    3, 'z', 0);
+     Args.Option("port",       4, 'Z', ':');
 }
 
+/******************************************************************************/
+/*                              s e t P o r t s                               */
+/******************************************************************************/
+
+int bbcp_Config::setPorts(char *pspec)
+{
+   char *Colon, buff[256];
+   int pnum1, pnum2;
+
+// Find colon and separate numbers
+//
+   if ((Colon = index(pspec, ':')))
+      {if (*(Colon+1)) *Colon = 0;
+          else {*Colon = ':';
+                bbcp_Fmsg("Config", "Invalid port range -", pspec);
+                return 0;
+               }
+      }
+
+// Convert first port
+//
+   if (a2n("port number", pspec, pnum1, 1, 65535)) return 0;
+
+// Get second port, if specified and verify range
+//
+   if (Colon)
+      {*Colon = ':';
+       if (a2n("port number", Colon+1, pnum2, 1, 65535)) return 0;
+      } else pnum2 = pnum1;
+
+// Set the port range
+//
+   if (!bbcp_Network::setPorts(pnum1, pnum2))
+      {bbcp_Fmsg("Config", "Invalid port range -", pspec);
+       return 0;
+      }
+
+// Reformat the port range
+//
+   if (Colon) sprintf(buff, "%d:%d", pnum1, pnum2);
+      else    sprintf(buff, "%d",    pnum1);
+   if (PorSpec) free(PorSpec);
+   PorSpec = strdup(buff);
+   return 1;
+}
+  
 /******************************************************************************/
 /*                                s e t R W B                                 */
 /******************************************************************************/

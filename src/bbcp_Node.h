@@ -47,7 +47,7 @@ int    Put(char *data[], int dlen[]);
 
 int    Run(char *user, char *host, char *prog, char *parg);
 
-int    RecvFile(bbcp_FileSpec *fspec);
+int    RecvFile(bbcp_FileSpec *fspec, bbcp_Node *Remote);
 
 int    SendFile(bbcp_FileSpec *fspec);
 

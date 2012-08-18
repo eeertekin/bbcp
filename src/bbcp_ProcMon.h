@@ -14,6 +14,8 @@
 #include "bbcp_File.h"
 #include "bbcp_Pthread.h"
 
+class bbcp_Node;
+
 class bbcp_ProcMon
 {
 public:
@@ -22,13 +24,14 @@ void  Limit();
 
 void  Monitor();
 
-void  Start(pid_t monit=0);
+void  Start(pid_t monit=0, bbcp_Node *Remote=0);
 void  Start(int seclim, bbcp_BuffPool *);
 
 void  Stop();
 
-      bbcp_ProcMon() : MonPool(0),mytid(0),alldone(0),TimeLimit(0),monDone(0)
-                     {}
+      bbcp_ProcMon() : pingNode(0), MonPool(0), mytid(0),
+                       alldone(0), TimeLimit(0), monDone(0) {}
+
      ~bbcp_ProcMon() {Stop();}
 
 bbcp_BuffPool *MonPool;
@@ -41,5 +44,7 @@ int            TimeLimit;
 pid_t          monPID;
 bbcp_CondVar   CondMon;
 bbcp_Semaphore monDone;
+bbcp_Mutex     pingMutex;
+bbcp_Node     *pingNode;
 };
 #endif

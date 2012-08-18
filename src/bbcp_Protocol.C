@@ -605,7 +605,7 @@ int bbcp_Protocol::Request(bbcp_Node *Node)
 // Get each source file
 //
    fp = bbcp_Config.srcSpec;
-   while(fp && !(retc = Request_get(fp)) && !(retc = Local->RecvFile(fp)))
+   while(fp && !(retc=Request_get(fp)) && !(retc=Local->RecvFile(fp,Remote)))
         {if (bbcp_Config.Options & bbcp_APPEND) totsz -= fp->targetsz;
          fp = fp->next;
         }

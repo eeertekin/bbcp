@@ -21,6 +21,7 @@
 #include "bbcp_Network.h"
 #include "bbcp_ProgMon.h"
 #include "bbcp_Protocol.h"
+#include "bbcp_Pthread.h"
 #include "bbcp_System.h"
 #include "bbcp_ZCX.h"
   
@@ -136,6 +137,8 @@ char *bbcp_Node::GetLine()
 
 int bbcp_Node::Put(char *data[], int dlen[])
 {
+   static bbcp_Mutex putMutex;
+
    if (DEBUGON)
       {int i= 0;
        cerr <<"bbcp_" <<bbcp_Debug.Who <<": Sending to " <<nodename <<": ";
@@ -143,7 +146,14 @@ int bbcp_Node::Put(char *data[], int dlen[])
                         else i++;
        cerr <<endl;
       }
-    return NStream.Put(data, dlen);
+
+   if (bbcp_Config.Options & bbcp_SRC) return NStream.Put(data, dlen);
+      else {int rc;
+            putMutex.Lock();
+            rc = NStream.Put(data, dlen);
+            putMutex.UnLock();
+            return rc;
+           }
 }
 
 /******************************************************************************/
@@ -273,7 +283,7 @@ int bbcp_Node::Wait(bbcp_Node *other)
 /*                              R e c v F i l e                               */
 /******************************************************************************/
 
-int bbcp_Node::RecvFile(bbcp_FileSpec *fp)
+int bbcp_Node::RecvFile(bbcp_FileSpec *fp, bbcp_Node *Remote)
 {
    static const int wOnly = S_IWUSR;
 
@@ -339,7 +349,7 @@ int bbcp_Node::RecvFile(bbcp_FileSpec *fp)
       return bbcp_Emsg("RecvFile", errno, "forking to create", Path);
    if (Child[0]) 
       {char buff[128];
-       Parent_Monitor.Start();
+       Parent_Monitor.Start(0,Remote);
        DEBUG("Waiting for child " <<Child[0] <<" to finish");
        retc = bbcp_OS.Waitpid(Child);
        Parent_Monitor.Stop();

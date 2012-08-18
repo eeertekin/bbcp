@@ -73,6 +73,22 @@ private:
 pthread_mutex_t cs;
 };
 
+class bbcp_MutexMon
+{
+public:
+
+void    UnLock() {if (monMutex) {monMutex->UnLock(); monMutex = 0;}}
+
+        bbcp_MutexMon(bbcp_Mutex *theMutex) : monMutex( theMutex)
+                     {theMutex->Lock();}
+        bbcp_MutexMon(bbcp_Mutex &theMutex) : monMutex(&theMutex)
+                     {theMutex. Lock();}
+       ~bbcp_MutexMon() {if (monMutex) {monMutex->UnLock(); monMutex = 0;}}
+
+private:
+bbcp_Mutex *monMutex;
+};
+
 #if defined(MACOS) || defined(AIX)
 class bbcp_Semaphore
 {

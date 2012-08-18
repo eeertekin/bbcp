@@ -38,6 +38,13 @@
        bbcp_Network bbcp_Net;
 
 /******************************************************************************/
+/*                        S t a t i c   O b j e c t s                         */
+/******************************************************************************/
+  
+int    bbcp_Network::pFirst = 0;
+int    bbcp_Network::pLast  = 0;
+
+/******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
@@ -291,6 +298,10 @@ bbcp_Link *bbcp_Network::Connect(char *host, int port, int retries, int rwait)
        return (bbcp_Link *)0;
       }
 
+// Some debugging
+//
+   DEBUG("Connected to: " <<hName <<':' <<port);
+
 // Return the link
 //
    free(hName);
@@ -308,6 +319,14 @@ void bbcp_Network::findPort(int &minport, int &maxport)
    static const char *MaxPort = "bbcplast";
    struct servent sent, *sp;
    char sbuff[1024];
+
+// Use command line ports if present
+//
+   if (pFirst)
+      {minport = pFirst;
+       maxport = pLast;
+       return;
+      }
 
 // Try to find minimum port number
 //
@@ -441,6 +460,20 @@ int bbcp_Network::QoS(int newQoS)
    return oldQoS;
 }
 
+/******************************************************************************/
+/*                              s e t P o r t s                               */
+/******************************************************************************/
+
+int bbcp_Network::setPorts(int pnum1, int pnum2)
+{
+
+   if (pnum1 < 1 || pnum1 > 65535 || pnum2 < 1 || pnum2 > 65535
+   ||  pnum1 > pnum2) return 0;
+   pFirst = pnum1;
+   pLast  = pnum2;
+   return 1;
+}
+  
 /******************************************************************************/
 /*                             s e t W i n d o w                              */
 /******************************************************************************/

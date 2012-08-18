@@ -12,9 +12,11 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include "bbcp_Config.h"
 #include "bbcp_Debug.h"
 #include "bbcp_Emsg.h"
 #include "bbcp_Headers.h"
+#include "bbcp_Node.h"
 #include "bbcp_ProcMon.h"
   
 /******************************************************************************/
@@ -60,7 +62,10 @@ void bbcp_ProcMon::Limit()
   
 void bbcp_ProcMon::Monitor()
 {
-   static const int wtime = 5;
+   static const int wtime = 5;   // 5 second periods
+   static const int pitvl =36;   // 3 minute interval for pings
+                int pleft =36;   // Expressed as number of 5 second intervals
+   bbcp_Node    *pingDest;
 
 // Allow immediate cancellations to avoid hang-ups
 //
@@ -72,6 +77,11 @@ void bbcp_ProcMon::Monitor()
         {if (kill(monPID, 0) && ESRCH == errno)
             {DEBUG("Process " <<monPID <<" has died");
              _exit(8);
+            }
+         if (pingNode && !pleft--)
+            {pingMutex.Lock(); pingDest = pingNode; pingMutex.UnLock();
+             if (pingDest) pingDest->Put("\n", 1);
+             pleft = pitvl;
             }
         }
 
@@ -85,7 +95,7 @@ void bbcp_ProcMon::Monitor()
 /*                                 S t a r t                                  */
 /******************************************************************************/
   
-void bbcp_ProcMon::Start(pid_t monit)
+void bbcp_ProcMon::Start(pid_t monit, bbcp_Node *Remote)
 {
    int retc;
 
@@ -97,6 +107,9 @@ void bbcp_ProcMon::Start(pid_t monit)
 //
    alldone = 0;
    monPID = (monit ? monit : getppid());
+   pingMutex.Lock();
+   pingNode = Remote;
+   pingMutex.UnLock();
 
 // Run a thread to start the monitor
 //
@@ -133,6 +146,12 @@ void bbcp_ProcMon::Start(int seclim, bbcp_BuffPool *buffpool)
   
 void bbcp_ProcMon::Stop()
 {
+
+// Stop any pings
+//
+   pingMutex.Lock();
+   pingNode = 0;
+   pingMutex.UnLock();
 
 // Simply issue a kill to the thread running the progress monitor
 //

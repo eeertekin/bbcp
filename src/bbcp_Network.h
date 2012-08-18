@@ -44,6 +44,8 @@ int          getWBSize(int xfd, int srwant);
 
 int          QoS(int newQoS=-1);
 
+static int   setPorts(int pnum1, int pnum2);
+
 int          setWindow(int wsz, int noAT=0);
 
 void         unBind() {if (iofd >= 0) {close(iofd); iofd = Portnum = -1;}}
@@ -52,6 +54,9 @@ void         unBind() {if (iofd >= 0) {close(iofd); iofd = Portnum = -1;}}
             ~bbcp_Network() {unBind();}
 
 private:
+
+static int pFirst;
+static int pLast;
 
 int        accWait;
 int        ATune;
