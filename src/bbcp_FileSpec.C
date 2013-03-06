@@ -148,6 +148,10 @@ int bbcp_FileSpec::Decode(char *buff, char *xName)
    if (Info.Group) free(Info.Group);
    Info.Group = strdup(gnbuff);
 
+// Apply space conversion to the group name
+//
+   while((Space = index(Info.Group, SpaceAlt))) *Space++ = ' ';
+
 // Check if we need to reconvert the file specification by replacing alternate
 // space characters with actual spaces.
 //
@@ -168,7 +172,7 @@ int bbcp_FileSpec::Decode(char *buff, char *xName)
 int bbcp_FileSpec::Encode(char *buff, size_t blen)
 {
    static const char UprCase = 0xdf;
-   char *Space, Otype = Info.Otype;
+   char grpBuff[64], *Space, *theGrp, Otype = Info.Otype;
    int n;
 
 // We have postponed handling spaces in file names until encode time. If there
@@ -182,10 +186,19 @@ int bbcp_FileSpec::Encode(char *buff, size_t blen)
        do {*Space = SpaceAlt;} while((Space = index(Space+1, ' ')));
       }
 
+// Convert spaces in the group name to an alternate character
+//
+   if ((Space = index(Info.Group, ' ')))
+      {strncpy(grpBuff, Info.Group, sizeof(grpBuff)-1);
+       grpBuff[sizeof(grpBuff)-1] = 0;
+       while((Space = index(grpBuff, ' '))) *Space++ = SpaceAlt;
+       theGrp = grpBuff;
+      } else theGrp = Info.Group;
+
 // Format the specification
 //
    n = snprintf(buff, blen, bbcp_ENFMT, seqno, Otype, Info.fileid,
-                Info.mode, Info.size, Info.atime, Info.mtime, Info.Group,
+                Info.mode, Info.size, Info.atime, Info.mtime, theGrp,
                 filereqn);
 
 // Make sure all went well
