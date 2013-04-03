@@ -16,8 +16,8 @@ AIXLIBS    =  -q64 -L/usr/lib -lz -lpthreads
 
 BSDLIBS    =  -L/usr/lib -lz -pthread
 
-LNXLIBS32  =  -lnsl -lpthread -lrt -lz
-LNXLIBS64  =  -lnsl -lpthread -lrt -lz
+LNXLIBS32  =  -lnsl -lpthread -lrt -lz -lssl
+LNXLIBS64  =  -lnsl -lpthread -lrt -lz -lssl 
 
 MACLIBS    =  -dynamic -L/usr/lib -lz                       -lpthread
 
@@ -92,6 +92,7 @@ SOURCE =      \
      bbcp_Link.C \
      bbcp_LogFile.C \
      bbcp_MD5.C \
+     bbcp_MD5_openssl.C \
      bbcp_NetLogger.C \
      bbcp_Network.C \
      bbcp_Node.C \
@@ -127,6 +128,7 @@ OBJECT =      \
      $(OBJDIR)/bbcp_Link.o \
      $(OBJDIR)/bbcp_LogFile.o \
      $(OBJDIR)/bbcp_MD5.o \
+     $(OBJDIR)/bbcp_MD5_openssl.o \
      $(OBJDIR)/bbcp_NetLogger.o \
      $(OBJDIR)/bbcp_Network.o \
      $(OBJDIR)/bbcp_Node.o \
@@ -213,12 +215,12 @@ Darwin:
 
 UNICOS/mp:
 	@make $(MKPARMS)  \
- 	CC=$(LNXCC) \
- 	BB=$(LNXcc) \
- 	CFLAGS="$(ENVCFLAGS) $(LNXOPT)" \
+	CC=$(LNXCC) \
+	BB=$(LNXcc) \
+	CFLAGS="$(ENVCFLAGS) $(LNXOPT)" \
 	BFLAGS="$(ENVCFLAGS) $(LNXOPT_B)" \
- 	INCLUDE="$(ENVINCLUDE)" \
- 	LIBS="$(LNXLIBS)"
+	INCLUDE="$(ENVINCLUDE)" \
+	LIBS="$(LNXLIBS)"
 
 SunOS:
 	@make $(MKPARMS)  \
@@ -269,7 +271,7 @@ $(OBJDIR)/bbcp_C32.o: bbcp_C32.C bbcp_C32.h bbcp_ChkSum.h bbcp_Endian.h
 	@$(CC) -c $(CFLAGS) $(INCLUDE) $(*F).C -o $(OBJDIR)/$(*F).o
 
 $(OBJDIR)/bbcp_ChkSum.o: bbcp_ChkSum.C bbcp_ChkSum.h bbcp_Endian.h \
-                         bbcp_A32.h bbcp_C32.h bbcp_MD5.h
+                         bbcp_A32.h bbcp_C32.h bbcp_MD5.h bbcp_MD5_openssl.h
 	@echo Compiling bbcp_ChkSum.C
 	@$(CC) -c $(CFLAGS) $(INCLUDE) $(*F).C -o $(OBJDIR)/$(*F).o
 
@@ -351,6 +353,10 @@ $(OBJDIR)/bbcp_LogFile.o:  bbcp_LogFile.C bbcp_LogFile.h bbcp_Pthread.h \
 
 $(OBJDIR)/bbcp_MD5.o: bbcp_MD5.C bbcp_MD5.h bbcp_ChkSum.h bbcp_Endian.h
 	@echo Compiling bbcp_MD5.C
+	@$(CC) -c $(CFLAGS) $(INCLUDE) $(*F).C -o $(OBJDIR)/$(*F).o
+
+$(OBJDIR)/bbcp_MD5_openssl.o: bbcp_MD5_openssl.C bbcp_MD5_openssl.h bbcp_ChkSum.h bbcp_Endian.h
+	@echo Compiling bbcp_MD5_openssl.C
 	@$(CC) -c $(CFLAGS) $(INCLUDE) $(*F).C -o $(OBJDIR)/$(*F).o
 
 $(OBJDIR)/bbcp_NetLogger.o:  bbcp_NetLogger.C bbcp_NetLogger.h NetLogger.h
