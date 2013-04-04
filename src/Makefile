@@ -271,7 +271,7 @@ $(OBJDIR)/bbcp_C32.o: bbcp_C32.C bbcp_C32.h bbcp_ChkSum.h bbcp_Endian.h
 	@$(CC) -c $(CFLAGS) $(INCLUDE) $(*F).C -o $(OBJDIR)/$(*F).o
 
 $(OBJDIR)/bbcp_ChkSum.o: bbcp_ChkSum.C bbcp_ChkSum.h bbcp_Endian.h \
-                         bbcp_A32.h bbcp_C32.h bbcp_MD5.h bbcp_MD5_openssl.h
+                         bbcp_A32.h bbcp_A32_zlib.h bbcp_C32.h bbcp_MD5.h bbcp_MD5_openssl.h
 	@echo Compiling bbcp_ChkSum.C
 	@$(CC) -c $(CFLAGS) $(INCLUDE) $(*F).C -o $(OBJDIR)/$(*F).o
 

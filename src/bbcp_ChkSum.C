@@ -11,6 +11,7 @@
 #include "bbcp_Config.h"
 #include "bbcp_ChkSum.h"
 #include "bbcp_A32.h"
+#include "bbcp_A32_zlib.h"
 #include "bbcp_C32.h"
 #include "bbcp_MD5.h"
 #include "bbcp_MD5_openssl.h"
@@ -24,7 +25,7 @@ bbcp_ChkSum *bbcp_ChkSum::Alloc(int csType)
 // Return correct object
 //
    switch(csType)
-         {case bbcp_csA32: return (bbcp_ChkSum *)new bbcp_A32;
+         {case bbcp_csA32: return (bbcp_ChkSum *)new bbcp_A32_zlib;
           case bbcp_csC32: return (bbcp_ChkSum *)new bbcp_C32;
           case bbcp_csMD5: return (bbcp_ChkSum *)new bbcp_MD5_openssl;
           default:         break;
