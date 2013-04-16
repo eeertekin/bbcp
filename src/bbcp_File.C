@@ -678,6 +678,7 @@ int bbcp_File::Write_All(bbcp_BuffPool &inPool, int nstrms)
    if (rc < 0 && rc != -ENOBUFS)
       {const char *Act=(bbcp_Config.Options & bbcp_XPIPE ? "piping":"writing");
        bbcp_Emsg("Write", -rc, Act, iofn);
+       inPool.Abort();
       }
 
 // Check if we should verify a checksum
