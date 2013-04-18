@@ -10,7 +10,7 @@ OBJDIR     = ../obj/$(OSVER)
 
 ENVCFLAGS  =    -Dunix -D_BSD -D_ALL_SOURCE
 
-ENVINCLUDE = -I. -I/usr/local/include -I/usr/include
+ENVINCLUDE = -I. -I/usr/local/include -I/usr/include 
 
 AIXLIBS    =  -q64 -L/usr/lib -lz -lpthreads
 
@@ -19,7 +19,7 @@ BSDLIBS    =  -L/usr/lib -lz -pthread
 LNXLIBS32  =  -lnsl -lpthread -lrt -lz -lssl
 LNXLIBS64  =  -lnsl -lpthread -lrt -lz -lssl 
 
-MACLIBS    =  -dynamic -L/usr/lib -lz                       -lpthread
+MACLIBS    =  -dynamic -L/usr/lib -lz -lpthread
 
 SUNLIBSA   =  /usr/local/lib/libz.a -lposix4 -lsocket -lnsl -lpthread
 SUNLIBS    =  -L/usr/lib -lz -lposix4 -lsocket -lnsl -lpthread
@@ -128,7 +128,7 @@ OBJECT =      \
      $(OBJDIR)/bbcp_Link.o \
      $(OBJDIR)/bbcp_LogFile.o \
      $(OBJDIR)/bbcp_MD5.o \
-     $(OBJDIR)/bbcp_MD5_openssl.o \
+     $(OBJMD5) \
      $(OBJDIR)/bbcp_NetLogger.o \
      $(OBJDIR)/bbcp_Network.o \
      $(OBJDIR)/bbcp_Node.o \
@@ -146,8 +146,9 @@ OBJECT =      \
 
 TARGET  = $(BINDIR)/bbcp
 
+
 all:
-	@make `uname` OSVER=`../MakeSname`
+	@make `uname` OSVER=`../MakeSname` 
 	@echo Make done.
 
 doitall: $(TARGET)
@@ -184,7 +185,9 @@ FreeBSD:
 	LIBS="$(BSDLIBS)"
 
 Linux:
-	@make makeLinux`/bin/uname -i`
+	@make makeLinux`/bin/uname -i` \
+	MD5HEADER=bbcp_MD5_openssl.h \
+	OBJMD5="$(OBJDIR)/bbcp_MD5_openssl.o"
 
 makeLinuxi386:
 	@make $(MKPARMS)  \
@@ -271,7 +274,7 @@ $(OBJDIR)/bbcp_C32.o: bbcp_C32.C bbcp_C32.h bbcp_ChkSum.h bbcp_Endian.h
 	@$(CC) -c $(CFLAGS) $(INCLUDE) $(*F).C -o $(OBJDIR)/$(*F).o
 
 $(OBJDIR)/bbcp_ChkSum.o: bbcp_ChkSum.C bbcp_ChkSum.h bbcp_Endian.h \
-                         bbcp_A32.h bbcp_A32_zlib.h bbcp_C32.h bbcp_MD5.h bbcp_MD5_openssl.h
+                         bbcp_A32.h bbcp_A32_zlib.h bbcp_C32.h bbcp_MD5.h $(MD5HEADER)
 	@echo Compiling bbcp_ChkSum.C
 	@$(CC) -c $(CFLAGS) $(INCLUDE) $(*F).C -o $(OBJDIR)/$(*F).o
 
