@@ -562,7 +562,7 @@ void bbcp_Config::Arguments(int argc, char **argv, int cfgfd)
        char *homedir = bbcp_OS.getHomeDir();
        CKPdir = (char *)malloc(strlen(homedir) + sizeof(ckpsfx) + 1);
        strcpy(CKPdir, homedir); strcat(CKPdir, ckpsfx);
-       if (mkdir(CKPdir, 0744) && errno != EEXIST)
+       if (mkdir(CKPdir, 0755) && errno != EEXIST)
           {bbcp_Emsg("Config",errno,"creating restart directory",CKPdir);
            exit(100);
           }
