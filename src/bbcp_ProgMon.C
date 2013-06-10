@@ -92,7 +92,7 @@ void bbcp_ProgMon::Monitor()
        if (bewordy)
           sprintf(buff, "bbcp: %s %s done; %.1f %sB/s, "
                         "avg %.1f %sB/s%s\n",
-                        tbuff,  pbuff, xfrtnow, xtXB, xfrtime, xaXB, cxip);
+                        tbuff,  pbuff, xfrtnow, xaXB, xfrtime, xtXB, cxip);
           else
           sprintf(buff, "bbcp: %s %s done; %.1f %sB/s%s\n",
                          tbuff,  pbuff, xfrtime, xtXB, cxip);
