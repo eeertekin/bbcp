@@ -27,7 +27,7 @@ bbcp_ChkSum *bbcp_ChkSum::Alloc(int csType)
    switch(csType)
          {case bbcp_csA32: return (bbcp_ChkSum *)new bbcp_A32_zlib;
           case bbcp_csC32: return (bbcp_ChkSum *)new bbcp_C32;
-#ifdef LINUX
+#if defined(LINUX) || defined(MACOS)
           case bbcp_csMD5: return (bbcp_ChkSum *)new bbcp_MD5_openssl;
 #else
           case bbcp_csMD5: return (bbcp_ChkSum *)new bbcp_MD5;

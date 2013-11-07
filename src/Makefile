@@ -19,7 +19,7 @@ BSDLIBS    =  -L/usr/lib -lz -pthread
 LNXLIBS32  =  -lnsl -lpthread -lrt -lz -lcrypto
 LNXLIBS64  =  -lnsl -lpthread -lrt -lz -lcrypto
 
-MACLIBS    =  -dynamic -L/usr/lib -lz -lpthread
+MACLIBS    =  -dynamic -L/usr/lib -lz -lpthread -lcrypto
 
 SUNLIBSA   =  /usr/local/lib/libz.a -lposix4 -lsocket -lnsl -lpthread
 SUNLIBS    =  -L/usr/lib -lz -lposix4 -lsocket -lnsl -lpthread
@@ -214,7 +214,10 @@ Darwin:
 	BB=$(MACcc) \
 	CFLAGS="$(ENVCFLAGS) $(MACOPT) $(OPT)" \
 	INCLUDE="$(ENVINCLUDE)" \
-	LIBS="$(MACLIBS)"
+	LIBS="$(MACLIBS)" \
+	MD5HEADER=bbcp_MD5_openssl.h \
+	OBJMD5="$(OBJDIR)/bbcp_MD5_openssl.o"
+
 
 UNICOS/mp:
 	@make $(MKPARMS)  \
