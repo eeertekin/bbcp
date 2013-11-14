@@ -68,14 +68,15 @@ public:
 void  Init() {unSum1 = AdlerStart; unSum2 = 0;}
 
 void  Update(const char *Buff, int BLen)
-            {while(BLen >= AdlerNMax)
+             {unsigned char *buff = (unsigned char *)Buff;
+              while(BLen >= AdlerNMax)
                   {BLen -= AdlerNMax; n = AdlerNCnt;
-                   do {DO16(Buff); Buff += 16;} while(--n);
+                   do {DO16(buff); buff += 16;} while(--n);
                    unSum1 %= AdlerBase; unSum2 %= AdlerBase;
                   }
             if (BLen)             // avoid modulos if none remaining
-               {while(BLen >= 16) {BLen -= 16; DO16(Buff); Buff += 16;}
-                while(BLen--) {unSum1 += *Buff++; unSum2 += unSum1;}
+               {while(BLen >= 16) {BLen -= 16; DO16(buff); buff += 16;}
+                while(BLen--) {unSum1 += *buff++; unSum2 += unSum1;}
                 unSum1 %= AdlerBase; unSum2 %= AdlerBase;
                }
             }
