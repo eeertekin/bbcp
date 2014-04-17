@@ -93,6 +93,8 @@ SOURCE =      \
      bbcp_LogFile.C \
      bbcp_MD5.C \
      bbcp_MD5_openssl.C \
+     bbcp_NetAddr.C \
+     bbcp_NetAddrInfo.C \
      bbcp_NetLogger.C \
      bbcp_Network.C \
      bbcp_Node.C \
@@ -130,6 +132,8 @@ OBJECT =      \
      $(OBJDIR)/bbcp_MD5.o \
      $(OBJMD5) \
      $(OBJDIR)/bbcp_NetLogger.o \
+     $(OBJDIR)/bbcp_NetAddr.o \
+     $(OBJDIR)/bbcp_NetAddrInfo.o \
      $(OBJDIR)/bbcp_Network.o \
      $(OBJDIR)/bbcp_Node.o \
      $(OBJDIR)/bbcp_ProcMon.o \
@@ -369,8 +373,19 @@ $(OBJDIR)/bbcp_NetLogger.o:  bbcp_NetLogger.C bbcp_NetLogger.h NetLogger.h
 	@echo Compiling bbcp_Netlogger.c
 	@$(CC) -c $(CFLAGS) $(INCLUDE) $(*F).C -o $(OBJDIR)/$(*F).o
 
+$(OBJDIR)/bbcp_NetAddr.o:  bbcp_NetAddr.C bbcp_NetAddr.h bbcp_NetAddrInfo.h \
+                           bbcp_NetSockAddr.h
+	@echo Compiling bbcp_NetAddr.C
+	@$(CC) -c $(CFLAGS) $(INCLUDE) $(*F).C -o $(OBJDIR)/$(*F).o
+
+$(OBJDIR)/bbcp_NetAddrInfo.o:  bbcp_NetAddrInfo.C bbcp_NetAddrInfo.h \
+                               bbcp_NetSockAddr.h
+	@echo Compiling bbcp_NetAddrInfo.C
+	@$(CC) -c $(CFLAGS) $(INCLUDE) $(*F).C -o $(OBJDIR)/$(*F).o
+
 $(OBJDIR)/bbcp_Network.o:  bbcp_Network.C bbcp_Network.h bbcp_Debug.h \
-                           bbcp_Emsg.h bbcp_Link.h bbcp_Pthread.h bbcp_Platform.h
+                           bbcp_Emsg.h bbcp_Link.h bbcp_Pthread.h \
+                           bbcp_NetAddr.h bbcp_NetAddrInfo.h  bbcp_Platform.h
 	@echo Compiling bbcp_Network.C
 	@$(CC) -c $(CFLAGS) $(INCLUDE) $(*F).C -o $(OBJDIR)/$(*F).o
 

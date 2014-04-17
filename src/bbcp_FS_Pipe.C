@@ -6,6 +6,24 @@
 /*      All Rights Reserved. See bbcp_Version.C for complete License Terms    *//*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
+/*                                                                            */
+/* bbcp is free software: you can redistribute it and/or modify it under      */
+/* the terms of the GNU Lesser General Public License as published by the     */
+/* Free Software Foundation, either version 3 of the License, or (at your     */
+/* option) any later version.                                                 */
+/*                                                                            */
+/* bbcp is distributed in the hope that it will be useful, but WITHOUT        */
+/* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or      */
+/* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public       */
+/* License for more details.                                                  */
+/*                                                                            */
+/* You should have received a copy of the GNU Lesser General Public License   */
+/* along with bbcp in a file called COPYING.LESSER (LGPL license) and file    */
+/* COPYING (GPL license).  If not, see <http://www.gnu.org/licenses/>.        */
+/*                                                                            */
+/* The copyright holder's institutional names and contributor's names may not */
+/* be used to endorse or promote products derived from this software without  */
+/* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
   
 #ifdef LINUX
@@ -53,6 +71,10 @@ bbcp_File *bbcp_FS_Pipe::Exec(const char *prog, const char *fa, int opts)
 // Issue some debugging here
 //
    DEBUG("Running " <<prog <<' ' <<(fa ? fa : ""));
+
+// Validate that we can actually run this program
+//
+   if (!Validate(prog)) return 0;
 
 // First tokenize the arguments
 //
@@ -208,4 +230,46 @@ int bbcp_FS_Pipe::Stat(const char *path, bbcp_FileInfo *sbuff)
    sbuff->Xtype = 'x';
    sbuff->Group = strdup("any");
    return 0;
+}
+
+/******************************************************************************/
+/*                              V a l i d a t e                               */
+/******************************************************************************/
+  
+bool bbcp_FS_Pipe::Validate(const char *pgm)
+{
+   extern const char *bbcp_HostName;
+   const char *aList = getenv("BBCP_ALLOWPP");
+   char *bList, *xList, *chkPgm;
+
+// Check if we are restricting program pipes
+//
+   if (!aList) return true;
+
+// Check if no program pipes are allowed
+//
+   if (!(*aList) || !strcmp(aList, "0"))
+      {cerr <<"bbcp: " <<bbcp_HostName <<" disallows program pipes." <<endl;
+       errno = EPERM;
+       return false;
+      }
+
+// Prepare to scan the allowed program list
+//
+   xList = bList = strdup(aList);
+   while(*bList)
+        {while(*bList && *bList == ' ') bList++;
+         chkPgm = bList; bList++;
+         while(*bList && *bList != ' ') bList++;
+         *bList = 0; bList++;
+         if (!strcmp(pgm, chkPgm)) {free(xList); return true;}
+        }
+
+// This program is not allowed
+//
+   free(xList);
+   cerr <<"bbcp: " <<bbcp_HostName <<" disallows " <<pgm
+                   <<" as a program pipe." <<endl;
+   errno = EPERM;
+   return false;
 }

@@ -2,10 +2,27 @@
 /*                                                                            */
 /*                       b b c p _ P r o t o c o l . C                        */
 /*                                                                            */
-/* (c) 2002 by the Board of Trustees of the Leland Stanford, Jr., University  */
-/*      All Rights Reserved. See bbcp_Version.C for complete License Terms    *//*                            All Rights Reserved                             */
+/*(c) 2002-14 by the Board of Trustees of the Leland Stanford, Jr., University*//*      All Rights Reserved. See bbcp_Version.C for complete License Terms    *//*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
-/*              DE-AC03-76-SFO0515 with the Department of Energy              */
+/*              DE-AC02-76-SFO0515 with the Department of Energy              */
+/*                                                                            */
+/* bbcp is free software: you can redistribute it and/or modify it under      */
+/* the terms of the GNU Lesser General Public License as published by the     */
+/* Free Software Foundation, either version 3 of the License, or (at your     */
+/* option) any later version.                                                 */
+/*                                                                            */
+/* bbcp is distributed in the hope that it will be useful, but WITHOUT        */
+/* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or      */
+/* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public       */
+/* License for more details.                                                  */
+/*                                                                            */
+/* You should have received a copy of the GNU Lesser General Public License   */
+/* along with bbcp in a file called COPYING.LESSER (LGPL license) and file    */
+/* COPYING (GPL license).  If not, see <http://www.gnu.org/licenses/>.        */
+/*                                                                            */
+/* The copyright holder's institutional names and contributor's names may not */
+/* be used to endorse or promote products derived from this software without  */
+/* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
 #include <ctype.h>
@@ -104,16 +121,27 @@ int bbcp_Protocol::Schedule(bbcp_Node *Fnode, bbcp_FileSpec *Ffs,
                             bbcp_Node *Tnode)
 {
    int retc;
-   char *cbhost;
+
+   char *cbhost, *addOpt[2];
 
 // Start-up the first node
 //
    if (retc = Fnode->Run(Ffs->username, Ffs->hostname, Fcmd, Ftype))
       return retc;
 
+// Determine additional options
+//
+   if (Ftype[1] == 'R')
+      {addOpt[0] = bbcp_Config.CopyOSrc;
+       addOpt[1] = bbcp_Config.CopyOTrg;
+      } else {
+       addOpt[0] = bbcp_Config.CopyOTrg;
+       addOpt[1] = bbcp_Config.CopyOSrc;
+      }
+
 // Send the arguments
 //
-   if (retc = SendArgs(Fnode, Ffs, (char *)"none", 0)) return retc;
+   if (retc = SendArgs(Fnode, Ffs, (char *)"none", 0, addOpt[0])) return retc;
 
 // Get the callback port from the first host
 //
@@ -127,13 +155,13 @@ int bbcp_Protocol::Schedule(bbcp_Node *Fnode, bbcp_FileSpec *Ffs,
 // Compute callback hostname and reset callback port
 //
    if (!(Ffs->hostname)) cbhost = bbcp_Config.MyAddr;
-      else if (bbcp_Config.Options & bbcp_NODNS && isdigit(Ffs->hostname[0]))
-              cbhost = strdup(Ffs->hostname);
+      else if ((bbcp_Config.Options & bbcp_NODNS && isdigit(Ffs->hostname[0]))
+           ||  Ffs->hostname[0] == '[') cbhost = strdup(Ffs->hostname);
               else cbhost = bbcp_Net.FullHostName(Ffs->hostname,1);
 
 // Send the arguments
 //
-   retc = SendArgs(Lnode, Lfs, cbhost, bbcp_Config.CBport);
+   retc = SendArgs(Lnode, Lfs, cbhost, bbcp_Config.CBport, addOpt[1]);
    free(cbhost);
    if (retc) return retc;
 
@@ -147,7 +175,7 @@ int bbcp_Protocol::Schedule(bbcp_Node *Fnode, bbcp_FileSpec *Ffs,
 
 // All done
 //
-   sleep(1);     // Delay the Stop just a bit to allow errors to be reported
+   sleep(1);     // Delay the Stop just/s e n to allow errors to be reported
    Fnode->Stop(retc==0);
    Lnode->Stop(retc==0);
    return retc;
@@ -915,10 +943,10 @@ void bbcp_Protocol::putCSV(char *Host, char *csFn, char *csVal, int csVsz)
 /******************************************************************************/
   
 int bbcp_Protocol::SendArgs(bbcp_Node *Node, bbcp_FileSpec *fsp,
-                            char *cbhost, int cbport)
+                            char *cbhost, int cbport, char *addOpt)
 {
-   char buff[512], *apnt[5];
-   int alen[4], i = 0;
+   char buff[512], *apnt[6];
+   int alen[6], i = 0;
 
 // The remote program should be running at this point, setup the args
 //
@@ -926,6 +954,7 @@ int bbcp_Protocol::SendArgs(bbcp_Node *Node, bbcp_FileSpec *fsp,
       {apnt[i]   = bbcp_Config.CopyOpts;
        alen[i++] = strlen(bbcp_Config.CopyOpts);
       }
+   if (addOpt) {apnt[i] = addOpt; alen[i++] = strlen(addOpt);}
    apnt[i]   = buff;
    alen[i++] = snprintf(buff, sizeof(buff)-1, " -H %s:%d\n", cbhost, cbport);
    apnt[i] = 0; alen[i] = 0;

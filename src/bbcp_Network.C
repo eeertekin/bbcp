@@ -2,10 +2,27 @@
 /*                                                                            */
 /*                        b b c p _ N e t w o r k . C                         */
 /*                                                                            */
-/* (c) 2002 by the Board of Trustees of the Leland Stanford, Jr., University  */
-/*      All Rights Reserved. See bbcp_Version.C for complete License Terms    *//*                            All Rights Reserved                             */
+/*(c) 2002-14 by the Board of Trustees of the Leland Stanford, Jr., University*//*      All Rights Reserved. See bbcp_Version.C for complete License Terms    *//*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
-/*              DE-AC03-76-SFO0515 with the Department of Energy              */
+/*              DE-AC02-76-SFO0515 with the Department of Energy              */
+/*                                                                            */
+/* bbcp is free software: you can redistribute it and/or modify it under      */
+/* the terms of the GNU Lesser General Public License as published by the     */
+/* Free Software Foundation, either version 3 of the License, or (at your     */
+/* option) any later version.                                                 */
+/*                                                                            */
+/* bbcp is distributed in the hope that it will be useful, but WITHOUT        */
+/* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or      */
+/* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public       */
+/* License for more details.                                                  */
+/*                                                                            */
+/* You should have received a copy of the GNU Lesser General Public License   */
+/* along with bbcp in a file called COPYING.LESSER (LGPL license) and file    */
+/* COPYING (GPL license).  If not, see <http://www.gnu.org/licenses/>.        */
+/*                                                                            */
+/* The copyright holder's institutional names and contributor's names may not */
+/* be used to endorse or promote products derived from this software without  */
+/* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
 // Contributions:
@@ -29,6 +46,7 @@
 #include "bbcp_Debug.h"
 #include "bbcp_Emsg.h"
 #include "bbcp_Network.h"
+#include "bbcp_NetAddr.h"
 #include "bbcp_Platform.h"
 
 /******************************************************************************/
@@ -129,10 +147,13 @@ bbcp_Network::bbcp_Network()
 
 bbcp_Link *bbcp_Network::Accept()
 {
-   char *newfn;
+   bbcp_NetAddr     PeerInfo;
+   bbcp_NetSockAddr PeerAddr;
+   const char *newfn, *eText;
    int newfd, retc;
    bbcp_Link *newconn;
    struct pollfd sfd[1];
+   socklen_t addrLen =  sizeof(PeerAddr);
 
 // Make sure we are bound to a port
 //
@@ -156,7 +177,7 @@ bbcp_Link *bbcp_Network::Accept()
               }
           }
 
-       do {newfd = accept(iofd, (struct sockaddr *)0, (size_t)0);}
+       do {newfd = accept(iofd, &PeerAddr.Addr, &addrLen);}
           while(newfd < 0 && errno == EINTR);
 
        if (newfd < 0)
@@ -168,8 +189,9 @@ bbcp_Link *bbcp_Network::Accept()
 
     // Get the peer name and set as the pathname
     //
-       if (!(newfn = Peername(newfd)))
-          {bbcp_Fmsg("Accept", "Unable to determine peer name.");
+       PeerInfo.Set(&PeerAddr.Addr);
+       if (!(newfn = PeerInfo.Name(0, &eText)))
+          {bbcp_Fmsg("Accept", "Unable to determine peer name; ", eText);
            close(newfd); continue;
           }
        setOpts("accept", newfd);
@@ -184,7 +206,6 @@ bbcp_Link *bbcp_Network::Accept()
 
 // Return new net object
 //
-   delete newfn;
    return newconn;
 }
   
@@ -194,10 +215,8 @@ bbcp_Link *bbcp_Network::Accept()
   
 int bbcp_Network::Bind(int minport, int maxport, int tries, int timeout)
 {
-    struct sockaddr_in InetAddr;
-    socklen_t iln = sizeof(InetAddr);
-    struct sockaddr *SockAddr = (struct sockaddr *)&InetAddr;
-    int SockSize = sizeof(InetAddr);
+    bbcp_NetAddr InetAddr;
+    const char *eText;
     char *action;
     int retc, One = 1, btry = 1;
     unsigned short port = minport;
@@ -208,7 +227,8 @@ int bbcp_Network::Bind(int minport, int maxport, int tries, int timeout)
 
 // Allocate a socket descriptor and set the options
 //
-   if ((iofd = socket(PF_INET, SOCK_STREAM, 0)) < 0)
+   InetAddr.Set((const char *)0,0);
+   if ((iofd = socket(InetAddr.Protocol(), SOCK_STREAM, 0)) < 0)
       return bbcp_Emsg("Bind", -errno, "creating inet socket");
    setOpts("bind", iofd);
 
@@ -217,11 +237,9 @@ int bbcp_Network::Bind(int minport, int maxport, int tries, int timeout)
    action = (char *)"binding";
    do {if (port > maxport && timeout > 0) sleep(timeout);
        port = minport;
-       do {
-           InetAddr.sin_family = AF_INET;
-           InetAddr.sin_addr.s_addr = INADDR_ANY;
-           InetAddr.sin_port = htons(port);
-           if (!(retc = bind(iofd, SockAddr, SockSize))) break;
+       do {InetAddr.Port(port);
+           if (!(retc = bind(iofd, InetAddr.SockAddr(), InetAddr.SockSize())))
+              break;
           } while(++port <= maxport);
       } while(++btry <= tries);
 
@@ -243,9 +261,9 @@ int bbcp_Network::Bind(int minport, int maxport, int tries, int timeout)
 //
    Portnum = port;
    if (port) return (int)port;
-   if (getsockname(iofd, SockAddr, &iln) < 0)
-      return bbcp_Emsg("Bind",-errno, "determing bound port number.");
-   Portnum = static_cast<int>(ntohs(InetAddr.sin_port));
+   if ((eText = InetAddr.Set(iofd, false)))
+      return bbcp_Emsg("Bind",-errno, "determining bound port number;", eText);
+   Portnum = InetAddr.Port();
    return Portnum;
 }
 
@@ -255,27 +273,23 @@ int bbcp_Network::Bind(int minport, int maxport, int tries, int timeout)
 
 bbcp_Link *bbcp_Network::Connect(char *host, int port, int retries, int rwait)
 {
-    struct sockaddr_in InetAddr;
-    struct sockaddr *SockAddr = (struct sockaddr *)&InetAddr;
-    int SockSize = sizeof(InetAddr);
+    bbcp_NetAddr InetAddr;
+    const char *eText, *hName;
     int newfd, retc;
-    char *hName;
     bbcp_Link *newlink;
 
 // Determine the host address
 //
-   if (getHostAddr(host, InetAddr))
-      {bbcp_Emsg("Connect", EHOSTUNREACH, "unable to find", host);
+   if ((eText = InetAddr.Set(host, port))
+   || !(hName = InetAddr.Name(0, &eText)))
+      {bbcp_Fmsg("Connect", "Unable to connect to ", host, "; ", eText);
        return (bbcp_Link *)0;
       }
-   InetAddr.sin_port = htons(port);
-   hName = getHostName(InetAddr);
 
 // Allocate a socket descriptor
 //
-   if ((newfd = socket(PF_INET, SOCK_STREAM, 0)) < 0)
+   if ((newfd = socket(InetAddr.Protocol(), SOCK_STREAM, 0)) < 0)
       {bbcp_Emsg("Connect", errno, "creating inet socket to", hName);
-       free(hName);
        return (bbcp_Link *)0;
       }
 
@@ -286,15 +300,14 @@ bbcp_Link *bbcp_Network::Connect(char *host, int port, int retries, int rwait)
 
 // Connect to the host
 //
-   do {retc = connect(newfd, SockAddr, SockSize);}
+   do {retc = connect(newfd, InetAddr.SockAddr(), InetAddr.SockSize());}
       while(retc < 0 && (errno == EINTR || 
            (errno == ECONNREFUSED && (retries = Retry(retries, rwait)))));
    if (retc)
-      {char buff[16];
+      {char buff[1024];
        delete newlink;
-       sprintf(buff, "port %d", port);
-       bbcp_Emsg("Connect", errno, "unable to connect to", hName, buff);
-       free(hName);
+       sprintf(buff, "port %s:%d", hName, port);
+       bbcp_Emsg("Connect", errno, "unable to connect to", buff);
        return (bbcp_Link *)0;
       }
 
@@ -304,7 +317,6 @@ bbcp_Link *bbcp_Network::Connect(char *host, int port, int retries, int rwait)
 
 // Return the link
 //
-   free(hName);
    return newlink;
 }
 
@@ -359,24 +371,30 @@ void bbcp_Network::Flow(int isSrc)
 
 char *bbcp_Network::FullHostName(char *host, int asipadr)
 {
-   char myname[260], *hp;
-   struct sockaddr_in InetAddr;
+   bbcp_NetAddr InetAddr((int)0);
+   char myname[260];
   
-// Identify ourselves if we don't have a passed hostname
+// Check if we should set something other than ourselves
 //
-   if (host) hp = host;
-      else if (gethostname(myname, sizeof(myname))) hp = (char *)"";
-              else hp = myname;
+   if (host) InetAddr.Set(host,0);
 
-// Get our address
+// Format name as needed
 //
-   if (getHostAddr(hp, InetAddr)) return strdup(hp);
+   if (!InetAddr.Format(myname, sizeof(myname),
+                        (asipadr ? bbcp_NetAddrInfo::fmtAddr
+                                 : bbcp_NetAddrInfo::fmtName),
+                        bbcp_NetAddrInfo::noPortRaw)) return 0;
 
-// Convert it to a fully qualified host name or IP address
+// Return the name
 //
-   return (asipadr ? strdup(inet_ntoa(InetAddr.sin_addr))
-                   : getHostName(InetAddr));
+   return strdup(myname);
 }
+
+/******************************************************************************/
+/*                                  I P V 4                                   */
+/******************************************************************************/
+  
+void bbcp_Network::IPV4() {bbcp_NetAddr::SetIPV4();}
 
 /******************************************************************************/
 /*                              M a x W S i z e                               */
@@ -492,7 +510,7 @@ int bbcp_Network::setWindow(int WSize, int noAT)
 /******************************************************************************/
 /*                           g e t H o s t A d d r                            */
 /******************************************************************************/
-  
+/*
 int bbcp_Network::getHostAddr(char *hostname, struct sockaddr_in &InetAddr)
 {
     unsigned int addr;
@@ -526,11 +544,11 @@ int bbcp_Network::getHostAddr(char *hostname, struct sockaddr_in &InetAddr)
                                     "obtaining address for", hostname);
    return 0;
 }
-
+*/
 /******************************************************************************/
 /*                           g e t H o s t N a m e                            */
 /******************************************************************************/
-
+/*
 char *bbcp_Network::getHostName(struct sockaddr_in &addr)
 {
    struct hostent hent, *hp;
@@ -548,29 +566,7 @@ char *bbcp_Network::getHostName(struct sockaddr_in &addr)
 //
    return hname;
 }
-  
-/******************************************************************************/
-/*                              P e e r n a m e                               */
-/******************************************************************************/
-  
-char *bbcp_Network::Peername(int snum)
-{
-      struct sockaddr_in addr;
-      socklen_t addrlen = sizeof(addr);
-      char *hname;
-
-// Get the address on the other side of this socket
-//
-   if (getpeername(snum, (struct sockaddr *)&addr, &addrlen) < 0)
-      {bbcp_Emsg("Peername", errno, "obtaining peer name.");
-       return (char *)0;
-      }
-
-// Convert it to a host name
-//
-   return getHostName(addr);
-}
-
+*/
 /******************************************************************************/
 /*                                 R e t r y                                  */
 /******************************************************************************/

@@ -2,10 +2,27 @@
 /*                                                                            */
 /*                         b b c p _ C o n f i g . C                          */
 /*                                                                            */
-/* (C) 2002 by the Board of Trustees of the Leland Stanford, Jr., University  */
-/*      All Rights Reserved. See bbcp_Version.C for complete License Terms    *//*                            All Rights Reserved                             */
+/*(c) 2002-14 by the Board of Trustees of the Leland Stanford, Jr., University*//*      All Rights Reserved. See bbcp_Version.C for complete License Terms    *//*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
-/*               DE-AC03-76-SFO0515 with the Deprtment of Energy              */
+/*               DE-AC02-76-SFO0515 with the Deprtment of Energy              */
+/*                                                                            */
+/* bbcp is free software: you can redistribute it and/or modify it under      */
+/* the terms of the GNU Lesser General Public License as published by the     */
+/* Free Software Foundation, either version 3 of the License, or (at your     */
+/* option) any later version.                                                 */
+/*                                                                            */
+/* bbcp is distributed in the hope that it will be useful, but WITHOUT        */
+/* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or      */
+/* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public       */
+/* License for more details.                                                  */
+/*                                                                            */
+/* You should have received a copy of the GNU Lesser General Public License   */
+/* along with bbcp in a file called COPYING.LESSER (LGPL license) and file    */
+/* COPYING (GPL license).  If not, see <http://www.gnu.org/licenses/>.        */
+/*                                                                            */
+/* The copyright holder's institutional names and contributor's names may not */
+/* be used to endorse or promote products derived from this software without  */
+/* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
 /*
@@ -77,6 +94,15 @@ extern bbcp_Network   bbcp_Net;
 extern bbcp_System    bbcp_OS;
 
 extern bbcp_Version   bbcp_Version;
+
+extern const char    *bbcp_License;
+
+       const char    *bbcp_HostName = "localhost";
+
+namespace
+{
+       char lclHost[] = {'l','o','c','a','l','h','o','s','t','\0'};
+};
   
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
@@ -84,7 +110,6 @@ extern bbcp_Version   bbcp_Version;
 
 bbcp_Config::bbcp_Config()
 {
-
    SrcBuff   = 0;
    SrcBase   = 0;
    SrcUser   = 0;
@@ -98,6 +123,8 @@ bbcp_Config::bbcp_Config()
    CBhost    = 0;
    CBport    = 0;
    CopyOpts  = 0;
+   CopyOSrc  = 0;
+   CopyOTrg  = 0;
    LogSpec   = 0;
    PorSpec   = 0;
    RepSpec   = 0;
@@ -117,15 +144,15 @@ bbcp_Config::bbcp_Config()
    RWBsz     = 0;
 // SrcXeq    = strdup("ssh -x -a -oFallBackToRsh=no -oServerAliveInterval=10 "
    SrcXeq    = strdup("ssh -x -a -oFallBackToRsh=no "
-                      "%I -l %U %H bbcp");
+                      "%4 %I -l %U %H bbcp");
 // SnkXeq    = strdup("ssh -x -a -oFallBackToRsh=no -oServerAliveInterval=10 "
    SnkXeq    = strdup("ssh -x -a -oFallBackToRsh=no "
-                      "%I -l %U %H bbcp");
+                      "%4 %I -l %U %H bbcp");
    Logurl    = 0;
    Logfn     = 0;
    MLog      = 0;
-   MyAddr    = bbcp_Net.FullHostName((char *)0, 1);
-   MyHost    = bbcp_Net.FullHostName((char *)0);
+   MyAddr    = lclHost;
+   MyHost    = lclHost;
    MyUser    = bbcp_OS.UserName();
    MyProg    = 0;
    SecToken  = Rtoken();
@@ -183,8 +210,8 @@ bbcp_Config::~bbcp_Config()
    if (CBhost)   free(CBhost);
    if (CopyOpts) free(CopyOpts);
    if (SecToken) free(SecToken);
-   if (MyHost)   free(MyHost);
-   if (MyUser)   free(MyUser);
+   if (MyHost && MyHost != lclHost) free(MyHost);
+   if (MyUser && MyUser != lclHost) free(MyUser);
    if (MyProg)   free(MyProg);
    if (CKPdir)   free(CKPdir);
    if (csSpec)   free(csSpec);
@@ -202,7 +229,7 @@ bbcp_Config::~bbcp_Config()
 #define Cat_Oct(x) {            cbp=n2a(x,&cbp[0],"%o");}
 #define Add_Str(x) {cbp[0]=' '; strcpy(&cbp[1], x); cbp+=strlen(x)+1;}
 
-#define bbcp_VALIDOPTS (char *)"-a.B:b:C:c.d:DeE:fFhi:I:kKl:L:m:nN:oOpP:q:rR.s:S:t:T:u:U:vVw:W:x:y:zZ:"
+#define bbcp_VALIDOPTS (char *)"-a.B:b:C:c.d:DeE:fFhi:I:kKl:L:m:nN:oOpP:q:rR.s:S:t:T:u:U:vVw:W:x:y:zZ:4.$#"
 #define bbcp_SSOPTIONS bbcp_VALIDOPTS "MH:Y:"
 
 #define Hmsg1(a)   {bbcp_Fmsg("Config", a);    help(1);}
@@ -380,6 +407,15 @@ void bbcp_Config::Arguments(int argc, char **argv, int cfgfd)
                  break;
        case 'Z': if (!setPorts(arglist.argval)) Cleanup(1, argv[0], cfgfd);
                  break;
+       case '4': if (notctl) Options |= bbcp_IPV4;
+                    else if (setIPV4(arglist.argval)) Cleanup(1,argv[0],cfgfd);
+                 break;
+       case '$': cout <<bbcp_License <<endl;
+                 exit(0);
+                 break;
+       case '#': cout <<bbcp_Version.VData <<endl;
+                 exit(0);
+                 break;
        case '-': break;
        default:  if (!notctl)
                     {if (cfgfd < 0) help(255);
@@ -391,6 +427,17 @@ void bbcp_Config::Arguments(int argc, char **argv, int cfgfd)
 // If we were processing the configuration file, return
 //
    if (!notctl && cfgfd >= 0) return;
+
+// Set the correct ip stack to use (do this before any resolution)
+//
+   if (Options & bbcp_IPV4) bbcp_Net.IPV4();
+
+// If we should use the DNS then get our real hostname
+//
+   MyAddr = bbcp_Net.FullHostName((char *)0, 1);
+   if (Options & bbcp_NODNS) MyHost = MyAddr;
+      else MyHost = bbcp_Net.FullHostName((char *)0);
+   bbcp_HostName = MyHost;
 
 // If there is a checksum specification, process it now
 //
@@ -584,8 +631,8 @@ void bbcp_Config::Arguments(int argc, char **argv, int cfgfd)
 /*                                  h e l p                                   */
 /******************************************************************************/
 
-#define H(x)    cerr <<x <<endl;
-#define I(x)    cerr <<'\n' <<x <<endl;
+#define H(x)    cout <<x <<endl;
+#define I(x)    cout <<'\n' <<x <<endl;
 
 /******************************************************************************/
   
@@ -597,7 +644,7 @@ H("         [-e] [-E csa] [-f] [-F] [-h] [-i idfn] [-I slfn] [-k] [-K]")
 H("         [-L opts[@logurl]] [-l logf] [-m mode] [-n] [-N nio] [-o] [-O] [-p]")
 H("         [-P sec] [-r] [-R [args]] [-q qos] [-s snum] [-S srcxeq] [-T trgxeq]")
 H("         [-t sec] [-v] [-V] [-u loc] [-U wsz] [-w [=]wsz] [-x rate] [-y] [-z]")
-H("         [-Z pnf[:pnl]] [--]")
+H("         [-Z pnf[:pnl]] [-4 [loc]] [-$] [-#] [--]")
 I("I/Ospec: [user@][host:]file")
 if (rc) exit(rc);
 I("Function: Secure and fast copy utility.")
@@ -650,6 +697,9 @@ H("-y what perform fsync before closing the output file when what is 'd'.")
 H("        When what is 'dd' then the file and directory are fsynced.")
 H("-z      use reverse connection protocol (i.e., target to source).")
 H("-Z      use port range pn1:pn2 for accepting data transfer connections.")
+H("-4      use only IPV4 stack; optionally, at specified location.")
+H("-$      print the license and exit.")
+H("-#      print the version and exit.")
 H("--      allows an option with a defaulted optional arg to appear last.")
 I("user    the user under which the copy is to be performed. The default is")
 H("        to use the current login name.")
@@ -874,7 +924,7 @@ void bbcp_Config::Config_Ctl(int rwbsz)
                                 }
    if (Options & bbcp_OUTDIR || (Options & bbcp_RELATIVE && SrcBase))
                                  Add_Opt('M');
-// if (Options & bbcp_NODNS)     Add_Opt('n');
+   if (Options & bbcp_NODNS)     Add_Opt('n');
    if (Options & bbcp_XPIPE)    {Add_Opt('N'); Add_Str(upSpec);}
    if (Options & bbcp_ORDER)     Add_Opt('o');
    if (Options & bbcp_OMIT)      Add_Opt('O');
@@ -899,7 +949,6 @@ void bbcp_Config::Config_Ctl(int rwbsz)
    if (Xrate)                   {Add_Opt('x'); Add_Num(Xrate);}
    if (SynSpec)                 {Add_Opt('y'); Add_Str(SynSpec);}
    if (Options & bbcp_CON2SRC)   Add_Opt('z');
-   CopyOptt = cbuff - cbp;
    if (csSpec)                  {Add_Opt('E'); Add_Str(csSpec);}
    if (Options & (bbcp_IDIO | bbcp_ODIO))
                                 {Add_Opt('u'); Add_Str(ubSpec);}
@@ -1246,11 +1295,18 @@ int bbcp_Config::LogOpts(char *opts)
   
 int bbcp_Config::HostAndPort(const char *what, char *path, char *buff, int bsz)
 {   int hlen, pnum = 0;
-    char *hn = path;
+    char *hn;
 
  // Extract the host name from the path
  //
-    while (*hn && *hn != ':') hn++;
+    if (*path == '[')
+       {if (!(hn = index(path, ']')))
+           {bbcp_Fmsg("Config", what, "invalid ipv6 address in", path);
+            return -1;
+           }
+        hn++;
+       } else if (!(hn = index(path, ':'))) hn = path + strlen(path);
+
     if (!(hlen = hn - path))
        {bbcp_Fmsg("Config", what, "host not specified in", path);
         return -1;
@@ -1349,6 +1405,29 @@ void bbcp_Config::setCS(char *inCS)
 }
   
 /******************************************************************************/
+/*                               s e t I P V 4                                */
+/******************************************************************************/
+  
+int bbcp_Config::setIPV4(char *opts)
+{
+    static char ipv4opt[] = {' ', '-', '4', '\0'};
+    char *opt = opts;
+
+    if (opts && *opts)
+       while(*opt)
+            {switch(*opt)
+                   {case 't': CopyOTrg = ipv4opt;   break;
+                    case 's': CopyOSrc = ipv4opt;   break;
+                    case 'c': Options |= bbcp_IPV4; break;
+                    default:  bbcp_Fmsg("Config","Invalid ipv4 options -",opts);
+                              return -1;
+                   }
+             opt++;
+            } else {CopyOSrc = CopyOTrg = ipv4opt; Options |= bbcp_IPV4;}
+    return 0;
+}
+  
+/******************************************************************************/
 /*                               s e t O p t s                                */
 /******************************************************************************/
   
@@ -1368,8 +1447,10 @@ void bbcp_Config::setOpts(bbcp_Args &Args)
      Args.Option("help",       1, 'h', ':');
      Args.Option("idfile",     1, 'i', ':');
      Args.Option("infiles",    2, 'I', ':');
+     Args.Option("ipv4",       4, '4', '.');
      Args.Option("keep",       1, 'k', 0);
 // K
+     Args.Option("license",    7, '$', 0);
      Args.Option("logfile",    1, 'l', ':');
 // L
      Args.Option("mode",       1, 'm', ':');
@@ -1388,6 +1469,7 @@ void bbcp_Config::setOpts(bbcp_Args &Args)
 // T
      Args.Option("verbose",    1, 'v', 0);
      Args.Option("vverbose",   2, 'V', 0);
+     Args.Option("version",    7, '#', 0);
      Args.Option("unbuffered", 1, 'u', ':');
 // U
      Args.Option("windowsz",   1, 'w', ':');
@@ -1486,7 +1568,6 @@ char *bbcp_Config::tohex(char *inbuff, int inlen, char *outbuff) {
 int bbcp_Config::Unbuff(char *opts)
 {
     char *opt = opts;
-    int myopts = 0, nlopts = 0;
 
     while(*opt)
          {switch(*opt)

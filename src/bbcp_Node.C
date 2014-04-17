@@ -3,10 +3,27 @@
 /*                           b b c p _ N o d e . C                            */
 /*                                                                            */
 /*                                                                            */
-/* (c) 2002 by the Board of Trustees of the Leland Stanford, Jr., University  */
-/*      All Rights Reserved. See bbcp_Version.C for complete License Terms    *//*                            All Rights Reserved                             */
+/*(c) 2002-14 by the Board of Trustees of the Leland Stanford, Jr., University*//*      All Rights Reserved. See bbcp_Version.C for complete License Terms    *//*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
-/*              DE-AC03-76-SFO0515 with the Department of Energy              */
+/*              DE-AC02-76-SFO0515 with the Department of Energy              */
+/*                                                                            */
+/* bbcp is free software: you can redistribute it and/or modify it under      */
+/* the terms of the GNU Lesser General Public License as published by the     */
+/* Free Software Foundation, either version 3 of the License, or (at your     */
+/* option) any later version.                                                 */
+/*                                                                            */
+/* bbcp is distributed in the hope that it will be useful, but WITHOUT        */
+/* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or      */
+/* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public       */
+/* License for more details.                                                  */
+/*                                                                            */
+/* You should have received a copy of the GNU Lesser General Public License   */
+/* along with bbcp in a file called COPYING.LESSER (LGPL license) and file    */
+/* COPYING (GPL license).  If not, see <http://www.gnu.org/licenses/>.        */
+/*                                                                            */
+/* The copyright holder's institutional names and contributor's names may not */
+/* be used to endorse or promote products derived from this software without  */
+/* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
 #include <errno.h>
@@ -162,8 +179,9 @@ int bbcp_Node::Put(char *data[], int dlen[])
   
 int bbcp_Node::Run(char *user, char *host, char *prog, char *parg)
 {
+   static char ipv4[] = {'-','4','\0'};
    int fderr, numa = 0;
-   char *username, *Argv[1024], *ap, *pp = prog;
+   char *username, *sshDest, bufDest[64], *Argv[1024], *ap, *pp = prog;
    const int ArgvSize = sizeof(Argv)/sizeof(char *)-2;
 
 // Free up any node name here
@@ -171,6 +189,15 @@ int bbcp_Node::Run(char *user, char *host, char *prog, char *parg)
    if (nodename) free(nodename);
    nodename = strdup(host ? host : bbcp_Config.MyHost);
    username = (user ? user : bbcp_Config.MyUser);
+
+// Check for an IPV6 address as ssh does not follow the rfc standard
+//
+   if (*nodename != '[') sshDest = nodename;
+      else {int i = strlen(nodename);
+            if (i > (int)sizeof(bufDest)) return -EHOSTUNREACH;
+            strcpy(bufDest, nodename+1);
+            bufDest[i-2] = 0; sshDest= bufDest;
+           }
 
 // Break up the command line and perform substitutions
 //
@@ -188,7 +215,12 @@ int bbcp_Node::Run(char *user, char *host, char *prog, char *parg)
                                 else numa--;
                             }
                     else if (ap[1] == 'U') Argv[numa] = username;
-                    else if (ap[1] == 'H') Argv[numa] = nodename;
+                    else if (ap[1] == 'H') Argv[numa] = sshDest;
+                    else if (ap[1] == '4')
+                            {if (bbcp_Config.Options & bbcp_IPV4)
+                                           Argv[numa] = ipv4;
+                                else numa--;
+                            }
                     else                   Argv[numa] = ap;
                    }
                     else Argv[numa] = ap;

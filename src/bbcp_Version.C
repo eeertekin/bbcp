@@ -2,10 +2,27 @@
 /*                                                                            */
 /*                        b b c p _ V e r s i o n . h                         */
 /*                                                                            */
-/* (c) 2010 by the Board of Trustees of the Leland Stanford, Jr., University  */
-/*      All Rights Reserved. Scroll to end for Terms and Conditions of use    */
+/*(c) 2010-14 by the Board of Trustees of the Leland Stanford, Jr., University*//*      All Rights Reserved. Scroll to end for Terms and Conditions of use    */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
-/*              DE-AC03-76-SFO0515 with the Department of Energy              */
+/*              DE-AC02-76-SFO0515 with the Department of Energy              */
+/*                                                                            */
+/* bbcp is free software: you can redistribute it and/or modify it under      */
+/* the terms of the GNU Lesser General Public License as published by the     */
+/* Free Software Foundation, either version 3 of the License, or (at your     */
+/* option) any later version.                                                 */
+/*                                                                            */
+/* bbcp is distributed in the hope that it will be useful, but WITHOUT        */
+/* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or      */
+/* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public       */
+/* License for more details.                                                  */
+/*                                                                            */
+/* You should have received a copy of the GNU Lesser General Public License   */
+/* along with bbcp in a file called COPYING.LESSER (LGPL license) and file    */
+/* COPYING (GPL license).  If not, see <http://www.gnu.org/licenses/>.        */
+/*                                                                            */
+/* The copyright holder's institutional names and contributor's names may not */
+/* be used to endorse or promote products derived from this software without  */
+/* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
   
 #include <strings.h>
@@ -30,9 +47,9 @@ extern bbcp_Config  bbcp_Config;
   
 bbcp_Version::bbcp_Version()
 {
-Copyright = "(c) 2013 by the Board of Trustees of the Leland Stanford, Jr., University";
+Copyright = "(c) 2002-2014 by the Board of Trustees of the Leland Stanford, Jr., University";
 Author    = "Andrew Hanushevsky";
-Version   = "Version: 13.05.03.00.1";
+Version   = "Version: 14.04.14.00.0";
 //           0123456789
 VData     = Version+9;
 };
@@ -73,27 +90,17 @@ int bbcp_Version::Verify(char *node, char *nodever)
 /******************************************************************************/
   
 const char *bbcp_License =
-"Copyright (c) 2005-2010, Board of Trustees of the Leland Stanford, Jr. University.\n"
-"Produced under contract DE-AC03-76-SF00515 with the US Department of Energy. \n"
-"All rights reserved.                                                         \n"
-"Redistribution and use in source and binary forms, with or without           \n"
-"modification, are permitted provided that the following conditions are met:  \n"
-"  a. Redistributions of source code must retain the above copyright notice,  \n"
-"this list of conditions and the following disclaimer.                        \n"
-"  b. Redistributions in binary form must reproduce the above copyright       \n"
-"notice, this list of conditions and the following disclaimer in the          \n"
-"documentation and/or other materials provided with the distribution.         \n"
-"  c. Neither the name of the Leland Stanford, Jr. University nor the names   \n"
-"of its contributors may be used to endorse or promote products derived from  \n"
-"this software without specific prior written permission.                     \n"
-"THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 'AS IS'  \n"
-"AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE    \n"
-"IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE   \n"
-"ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE     \n"
-"LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR          \n"
-"CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF         \n"
-"SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS     \n"
-"INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN      \n"
-"CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)      \n"
-"ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE   \n"
-"POSSIBILITY OF SUCH DAMAGE.";
+"bbcp is free software: you can redistribute it and/or modify it under\n"
+"the terms of the GNU Lesser General Public License as published by the\n"
+"Free Software Foundation, either version 3 of the License, or (at your\n"
+"option) any later version.\n\n"
+"bbcp is distributed in the hope that it will be useful, but WITHOUT\n"
+"ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or\n"
+"FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public\n"
+"License for more details.\n\n"
+"You should have received a copy of the GNU Lesser General Public License\n"
+"along with bbcp in a file called COPYING.LESSER (LGPL license) and file\n"
+"COPYING (GPL license).  If not, see <http://www.gnu.org/licenses/>.\n\n"
+"The copyright holder's institutional names and contributor's names may not\n"
+"be used to endorse or promote products derived from this software without\n"
+"specific prior written permission of the institution or contributor.";
