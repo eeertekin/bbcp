@@ -123,6 +123,7 @@ int bbcp_Protocol::Schedule(bbcp_Node *Fnode, bbcp_FileSpec *Ffs,
    int retc;
 
    char *cbhost, *addOpt[2];
+   bool fcbh = false;
 
 // Start-up the first node
 //
@@ -154,15 +155,15 @@ int bbcp_Protocol::Schedule(bbcp_Node *Fnode, bbcp_FileSpec *Ffs,
 
 // Compute callback hostname and reset callback port
 //
-   if (!(Ffs->hostname)) cbhost = bbcp_Config.MyAddr;
-      else if ((bbcp_Config.Options & bbcp_NODNS && isdigit(Ffs->hostname[0]))
-           ||  Ffs->hostname[0] == '[') cbhost = strdup(Ffs->hostname);
-              else cbhost = bbcp_Net.FullHostName(Ffs->hostname,1);
+        if (!(Ffs->hostname)) cbhost = bbcp_Config.MyAddr;
+   else if ((bbcp_Config.Options & bbcp_NODNS && isdigit(Ffs->hostname[0]))
+           ||  Ffs->hostname[0] == '[') cbhost = Ffs->hostname;
+   else fcbh = (cbhost = bbcp_Net.FullHostName(Ffs->hostname,1)) !=0;
 
 // Send the arguments
 //
    retc = SendArgs(Lnode, Lfs, cbhost, bbcp_Config.CBport, addOpt[1]);
-   free(cbhost);
+   if (fcbh) free(cbhost);
    if (retc) return retc;
 
 // The the final ending

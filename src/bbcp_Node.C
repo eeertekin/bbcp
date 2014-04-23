@@ -181,7 +181,7 @@ int bbcp_Node::Run(char *user, char *host, char *prog, char *parg)
 {
    static char ipv4[] = {'-','4','\0'};
    int fderr, numa = 0;
-   char *username, *sshDest, bufDest[64], *Argv[1024], *ap, *pp = prog;
+   char *username, *sshDest, bufDest[264], *Argv[1024], *ap, *pp = prog;
    const int ArgvSize = sizeof(Argv)/sizeof(char *)-2;
 
 // Free up any node name here

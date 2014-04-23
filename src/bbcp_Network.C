@@ -383,7 +383,7 @@ char *bbcp_Network::FullHostName(char *host, int asipadr)
    if (!InetAddr.Format(myname, sizeof(myname),
                         (asipadr ? bbcp_NetAddrInfo::fmtAddr
                                  : bbcp_NetAddrInfo::fmtName),
-                        bbcp_NetAddrInfo::noPortRaw)) return 0;
+                        bbcp_NetAddrInfo::noPort)) return 0;
 
 // Return the name
 //
