@@ -202,6 +202,15 @@ makeLinuxi386:
 	INCLUDE="$(ENVINCLUDE)" \
 	LIBS="$(LNXLIBS32)"
 
+makeLinuxi686:
+	@make $(MKPARMS)  \
+	CC=$(LNXCC) \
+	BB=$(LNXcc) \
+	CFLAGS="$(ENVCFLAGS) $(LNXOPT)" \
+	BFLAGS="$(ENVCFLAGS) $(LNXOPT_B)" \
+	INCLUDE="$(ENVINCLUDE)" \
+	LIBS="$(LNXLIBS32)"
+
 makeLinuxx86_64:
 	@make $(MKPARMS)  \
 	CC=$(LNXCC) \
