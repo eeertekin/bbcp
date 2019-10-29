@@ -67,7 +67,7 @@ elif FileThere x $UNAMF; then
   elif [ $OSNAME = Linux ]; then
        case $RLNAME in 2.4*) RFX=24 ;; 2.6*) RFX=26 ;; esac
        PFX=i386
-       case $MTNAME in i*) PFX=i386 ;; x86_64) PFX=amd64 ;; esac
+       case $MTNAME in i*) PFX=i386 ;; x86_64) PFX=amd64 ;; aarch64) PFX=aarch64 ;; esac
        SYSNAME=${PFX}_linux$RFX
   elif [ $OSNAME = FreeBSD ]; then
        case $RLNAME in 4.2*) RFX=42 ;; 4.3*) RFX=43 ;; 4.4*) RFX=44 ;; esac
